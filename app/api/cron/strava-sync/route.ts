@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job: /api/cron/strava-sync
- * Schedule: every 4 hours ("0 */4 * * *")
+ * Schedule: daily at 21:00 UTC ("0 21 * * *")
  *
  * Protected by CRON_SECRET header (set by Vercel) OR a valid NextAuth session
  * (for manual "Sync Now" triggers from the dashboard).

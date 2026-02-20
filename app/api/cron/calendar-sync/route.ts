@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job: /api/cron/calendar-sync
- * Schedule: every 2 hours ("0 */2 * * *")
+ * Schedule: daily at 21:00 UTC ("0 21 * * *")
  *
  * Protected by CRON_SECRET header (set by Vercel) OR a valid NextAuth session
  * (for manual "Sync Now" triggers from the dashboard).
