@@ -29,6 +29,18 @@ function formatMins(seconds: number): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function activityIcon(type: string): string {
+  switch (type) {
+    case "Ride":
+    case "VirtualRide": return "🚴";
+    case "Run":
+    case "VirtualRun": return "🏃";
+    case "WeightTraining":
+    case "Crossfit": return "🏋️";
+    default: return "🏅";
+  }
+}
+
 export default function SyncStatusCard() {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -57,8 +69,16 @@ export default function SyncStatusCard() {
       ]);
       const stravaData = await stravaRes.json();
       const calData = await calRes.json();
-      if (!stravaRes.ok || !calRes.ok) {
-        setError(stravaData.error ?? calData.error ?? "Sync failed");
+      if (!stravaRes.ok) {
+        setError(stravaData.error ?? "Strava sync failed");
+      } else if (!calRes.ok) {
+        if (calData.error?.includes("Google Calendar not connected")) {
+          setError("Sign out and back in to enable calendar sync");
+        } else {
+          setError(calData.error ?? "Calendar sync failed");
+        }
+        // Still refresh status — Strava may have synced fine
+        await fetchStatus();
       } else {
         await fetchStatus();
       }
@@ -85,7 +105,10 @@ export default function SyncStatusCard() {
     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-white text-sm">Sync Status</h2>
+        <div>
+          <h2 className="font-semibold text-white text-sm">Activity & Sync</h2>
+          <p className="text-xs text-zinc-500 mt-0.5">Strava imports · Calendar conflicts</p>
+        </div>
         <button
           onClick={handleSyncNow}
           disabled={syncing}
@@ -96,55 +119,71 @@ export default function SyncStatusCard() {
       </div>
 
       {error && (
-        <p className="text-xs text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-xs text-yellow-400 bg-yellow-500/10 rounded-lg px-3 py-2">{error}</p>
       )}
 
       {/* Last sync times */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
+      <div className="grid grid-cols-2 gap-3">
         <div className="bg-zinc-800/50 rounded-xl p-3">
-          <p className="text-xs text-zinc-500 mb-0.5">Strava sync</p>
-          <p className="font-medium text-zinc-200">{formatRelative(status.lastStravaSync)}</p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-sm">🟠</span>
+            <p className="text-xs font-medium text-zinc-300">Strava</p>
+          </div>
+          <p className="text-sm font-semibold text-white">{formatRelative(status.lastStravaSync)}</p>
+          <p className="text-xs text-zinc-600 mt-0.5">Last activity import</p>
           {!status.stravaConnected && (
             <a
               href="/api/strava/connect"
-              className="text-xs text-orange-400 hover:text-orange-300 mt-1 block"
+              className="text-xs text-orange-400 hover:text-orange-300 mt-1.5 block"
             >
               Connect Strava →
             </a>
           )}
         </div>
         <div className="bg-zinc-800/50 rounded-xl p-3">
-          <p className="text-xs text-zinc-500 mb-0.5">Calendar check</p>
-          <p className="font-medium text-zinc-200">{formatRelative(status.lastCalendarCheck)}</p>
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-sm">📅</span>
+            <p className="text-xs font-medium text-zinc-300">Calendar</p>
+          </div>
+          <p className="text-sm font-semibold text-white">{formatRelative(status.lastCalendarCheck)}</p>
+          <p className="text-xs text-zinc-600 mt-0.5">Last conflict scan</p>
         </div>
       </div>
 
-      {/* Training load */}
+      {/* Training load — this week */}
       {tl && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">This Week</p>
-          <div className="grid grid-cols-3 gap-2 text-center text-sm">
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-2">
-              <p className="text-lg font-bold text-blue-400">{tl.weekBikeMiles}</p>
-              <p className="text-xs text-blue-500/70">Bike mi</p>
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">This week's training</p>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex items-center gap-3">
+              <span className="text-xl">🚴</span>
+              <div>
+                <p className="text-lg font-bold text-blue-400 leading-none">{tl.weekBikeMiles} mi</p>
+                <p className="text-xs text-blue-500/70 mt-0.5">Cycling</p>
+              </div>
             </div>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-2">
-              <p className="text-lg font-bold text-green-400">{tl.weekRunMiles}</p>
-              <p className="text-xs text-green-500/70">Run mi</p>
-            </div>
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-2">
-              <p className="text-lg font-bold text-purple-400">
-                {tl.sessionsCompleted}/{tl.sessionsScheduled}
-              </p>
-              <p className="text-xs text-purple-500/70">Done</p>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex items-center gap-3">
+              <span className="text-xl">🏃</span>
+              <div>
+                <p className="text-lg font-bold text-green-400 leading-none">{tl.weekRunMiles} mi</p>
+                <p className="text-xs text-green-500/70 mt-0.5">Running</p>
+              </div>
             </div>
           </div>
+          {tl.sessionsScheduled > 0 && (
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl px-3 py-2 flex items-center justify-between">
+              <p className="text-xs text-purple-400/80">Sessions completed this week</p>
+              <p className="text-sm font-bold text-purple-400">
+                {tl.sessionsCompleted} / {tl.sessionsScheduled}
+              </p>
+            </div>
+          )}
           {tl.longestRideMiles > 0 && (
             <p className="text-xs text-zinc-500">
               Longest ride:{" "}
               <span className="font-medium text-zinc-300">{tl.longestRideMiles} mi</span>
               {tl.longRideTargetHit && (
-                <span className="ml-1 text-green-400 font-medium">Target hit!</span>
+                <span className="ml-1 text-green-400 font-medium">Long ride target hit!</span>
               )}
             </p>
           )}
@@ -154,15 +193,13 @@ export default function SyncStatusCard() {
       {/* Recent reschedules */}
       {status.recentReschedules.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
-            Auto-rescheduled
-          </p>
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Auto-rescheduled</p>
           {status.recentReschedules.map((r, i) => (
             <div key={i} className="text-xs text-zinc-400 bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-3 py-2">
               <span className="font-medium text-zinc-300">{r.sessionType}</span>
-              {" "}moved {r.originalDay} {r.originalTime} → {r.newDay} {r.newTime}
+              {" "}moved from {r.originalDay} {r.originalTime} → {r.newDay} {r.newTime}
               {r.conflictWith && (
-                <span className="text-zinc-600"> ({r.conflictWith})</span>
+                <span className="text-zinc-600"> (conflict: {r.conflictWith})</span>
               )}
             </div>
           ))}
@@ -171,14 +208,13 @@ export default function SyncStatusCard() {
 
       {/* Recent activities */}
       {status.recentActivities.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">
-            Recent Activities
-          </p>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Recent Activities</p>
           {status.recentActivities.slice(0, 3).map((a) => (
-            <div key={a.id} className="flex items-center justify-between text-xs text-zinc-400">
-              <span className="truncate max-w-[60%]">{a.name}</span>
-              <span className="text-zinc-600 flex-shrink-0">
+            <div key={a.id} className="flex items-center gap-2.5 text-xs text-zinc-400">
+              <span className="flex-shrink-0">{activityIcon(a.type)}</span>
+              <span className="truncate flex-1 text-zinc-300">{a.name}</span>
+              <span className="text-zinc-500 flex-shrink-0">
                 {a.distance > 0 ? `${a.distance} mi` : formatMins(a.moving_time)}
               </span>
             </div>
