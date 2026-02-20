@@ -210,7 +210,7 @@ export default function GoalsPage() {
                   )}
 
                   {/* Ride target for upcoming phases */}
-                  {!isCurrent && !isPast && phase.longRideTargetMiles > 0 && (
+                  {!isCurrent && !isPast && phase.longRideTargetKm > 0 && (
                     <p className="text-xs text-zinc-600">
                       Target ride: {phase.longRideTargetKm} km
                     </p>
