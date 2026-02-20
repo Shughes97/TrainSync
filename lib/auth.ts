@@ -1,5 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import { storeGoogleTokens } from "@/lib/kv";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -25,6 +26,11 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, account }) {
       // First sign-in: persist tokens from OAuth provider
       if (account) {
+        await storeGoogleTokens(
+          account.access_token!,
+          account.refresh_token,
+          account.expires_at
+        );
         return {
           ...token,
           accessToken: account.access_token,
