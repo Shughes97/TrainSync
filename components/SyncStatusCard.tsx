@@ -153,7 +153,7 @@ export default function SyncStatusCard() {
       {/* Training load — this week */}
       {tl && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">This week's training</p>
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">This week&apos;s training</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex items-center gap-3">
               <span className="text-xl">🚴</span>
