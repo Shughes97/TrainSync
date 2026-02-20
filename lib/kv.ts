@@ -44,6 +44,7 @@ export interface StoredWeekSchedule {
 export interface TrainingLoad {
   weekBikeMiles: number;
   weekRunMiles: number;
+  weekGymMins: number;
   sessionsCompleted: number;
   sessionsScheduled: number;
   longRideTargetHit: boolean;

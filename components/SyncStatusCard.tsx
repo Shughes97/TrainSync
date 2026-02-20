@@ -154,20 +154,22 @@ export default function SyncStatusCard() {
       {tl && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">This week&apos;s training</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 flex items-center gap-3">
-              <span className="text-xl">🚴</span>
-              <div>
-                <p className="text-lg font-bold text-blue-400 leading-none">{tl.weekBikeMiles} mi</p>
-                <p className="text-xs text-blue-500/70 mt-0.5">Cycling</p>
-              </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+              <p className="text-sm font-bold text-blue-400 leading-none">{tl.weekBikeMiles} mi</p>
+              <p className="text-xs text-blue-500/70 mt-1">🚴 Cycling</p>
             </div>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 flex items-center gap-3">
-              <span className="text-xl">🏃</span>
-              <div>
-                <p className="text-lg font-bold text-green-400 leading-none">{tl.weekRunMiles} mi</p>
-                <p className="text-xs text-green-500/70 mt-0.5">Running</p>
-              </div>
+            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3">
+              <p className="text-sm font-bold text-green-400 leading-none">{tl.weekRunMiles} mi</p>
+              <p className="text-xs text-green-500/70 mt-1">🏃 Running</p>
+            </div>
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3">
+              <p className="text-sm font-bold text-orange-400 leading-none">
+                {tl.weekGymMins >= 60
+                  ? `${Math.floor(tl.weekGymMins / 60)}h ${tl.weekGymMins % 60}m`
+                  : `${tl.weekGymMins}m`}
+              </p>
+              <p className="text-xs text-orange-500/70 mt-1">🏋️ Gym</p>
             </div>
           </div>
           {tl.sessionsScheduled > 0 && (

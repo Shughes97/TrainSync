@@ -66,6 +66,10 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
     .filter((a) => a.type === "Run" || a.type === "VirtualRun")
     .reduce((sum, a) => sum + a.distance, 0);
 
+  const weekGymSecs = thisWeek
+    .filter((a) => a.type === "WeightTraining" || a.type === "Crossfit")
+    .reduce((sum, a) => sum + a.moving_time, 0);
+
   const rides = thisWeek.filter((a) => a.type === "Ride" || a.type === "VirtualRide");
   const longestRideMiles = rides.length > 0 ? Math.max(...rides.map((a) => a.distance)) : 0;
 
@@ -75,6 +79,7 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
   const trainingLoad: TrainingLoad = {
     weekBikeMiles: Math.round(weekBikeMiles * 10) / 10,
     weekRunMiles: Math.round(weekRunMiles * 10) / 10,
+    weekGymMins: Math.round(weekGymSecs / 60),
     sessionsCompleted: completedSessions,
     sessionsScheduled: weekSchedule?.sessions.length ?? 0,
     longRideTargetHit: longRideTarget > 0 && longestRideMiles >= longRideTarget * 0.9,
