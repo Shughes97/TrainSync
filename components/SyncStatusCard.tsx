@@ -216,15 +216,23 @@ export default function SyncStatusCard() {
       {status.recentActivities.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Recent Activities</p>
-          {status.recentActivities.slice(0, 3).map((a) => (
-            <div key={a.id} className="flex items-center gap-2.5 text-xs text-zinc-400">
-              <span className="flex-shrink-0">{activityIcon(a.type)}</span>
-              <span className="truncate flex-1 text-zinc-300">{a.name}</span>
-              <span className="text-zinc-500 flex-shrink-0">
-                {a.distance > 0 ? `${a.distance} km` : formatMins(a.moving_time)}
-              </span>
-            </div>
-          ))}
+          {status.recentActivities.slice(0, 3).map((a) => {
+            const dateStr = new Date(a.start_date).toLocaleDateString("en-GB", {
+              weekday: "short", day: "numeric", month: "short",
+            });
+            return (
+              <div key={a.id} className="flex items-center gap-2.5 text-xs">
+                <span className="flex-shrink-0">{activityIcon(a.type)}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-zinc-300">{a.name}</p>
+                  <p className="text-zinc-600">{dateStr}</p>
+                </div>
+                <span className="text-zinc-500 flex-shrink-0">
+                  {a.distance > 0 ? `${a.distance} km` : formatMins(a.moving_time)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
