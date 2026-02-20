@@ -371,10 +371,21 @@ export default function Dashboard() {
           </div>
         ) : proposals.length === 0 ? (
           <div className="text-center py-16">
-            <p className="text-zinc-500 text-sm">No free slots found this week.</p>
-            <p className="text-zinc-600 text-xs mt-1">
-              Your calendar looks fully booked in the 6:30–8am and 5–8pm windows.
-            </p>
+            {scheduledCount > 0 ? (
+              <>
+                <p className="text-zinc-400 text-sm font-medium">Week fully scheduled</p>
+                <p className="text-zinc-600 text-xs mt-1">
+                  You already have {scheduledCount} session{scheduledCount !== 1 ? "s" : ""} on your calendar this week.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-zinc-500 text-sm">No free slots found this week.</p>
+                <p className="text-zinc-600 text-xs mt-1">
+                  Your calendar looks fully booked in the 6:30–8am and 5–8pm windows.
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="space-y-3">

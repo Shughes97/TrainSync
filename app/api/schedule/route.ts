@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { fetchBusySlots, fetchAllEventsByDay } from "@/lib/google-calendar";
+import { fetchBusySlots, fetchAllEventsByDay, fetchWeekEvents } from "@/lib/google-calendar";
 import { buildWeeklyPlan, getWeekStart } from "@/lib/scheduler";
 import { getCurrentPhase } from "@/lib/training-config";
 
@@ -21,14 +21,27 @@ export async function GET(req: NextRequest) {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 7);
 
-    // Fetch busy slots (for scheduling) and all events (for day preview) in parallel
-    const [busySlots, calendarEventsByDay] = await Promise.all([
-      fetchBusySlots(session.accessToken, weekStart, weekEnd),
-      fetchAllEventsByDay(session.accessToken, weekStart, weekEnd),
-    ]);
-
     // Apply phase-specific session template when within the 17-week plan window
     const phaseCtx = getCurrentPhase(weekStart);
+    const targetCount = phaseCtx?.phase.weeklyPlan.length ?? 5;
+
+    // Fetch busy slots, day event preview, and existing TrainSync events in parallel
+    const [busySlots, calendarEventsByDay, existingEvents] = await Promise.all([
+      fetchBusySlots(session.accessToken, weekStart, weekEnd),
+      fetchAllEventsByDay(session.accessToken, weekStart, weekEnd),
+      fetchWeekEvents(session.accessToken, weekStart, weekEnd),
+    ]);
+
+    // If the week is already fully scheduled, skip generating new proposals
+    if (existingEvents.length >= targetCount) {
+      return NextResponse.json({
+        proposals: [],
+        warnings: [],
+        weekStart: weekStart.toISOString(),
+        calendarEventsByDay,
+      });
+    }
+
     const result = buildWeeklyPlan({
       busySlots,
       weekStart,
