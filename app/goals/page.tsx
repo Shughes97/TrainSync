@@ -38,7 +38,7 @@ export default function GoalsPage() {
   const today = new Date();
   const currentWeek = getTrainingWeek(today);
   const phaseCtx = getCurrentPhase(today);
-  const longRideTarget = phaseCtx?.phase.longRideTargetMiles ?? 0;
+  const longRideTarget = phaseCtx?.phase.longRideTargetKm ?? 0;
 
   const [activities, setActivities] = useState<StoredActivity[]>([]);
   const [trainingLoad, setTrainingLoad] = useState<TrainingLoad | null>(null);
@@ -212,7 +212,7 @@ export default function GoalsPage() {
                   {/* Ride target for upcoming phases */}
                   {!isCurrent && !isPast && phase.longRideTargetMiles > 0 && (
                     <p className="text-xs text-zinc-600">
-                      Target ride: {phase.longRideTargetMiles} miles
+                      Target ride: {phase.longRideTargetKm} km
                     </p>
                   )}
 
@@ -267,12 +267,12 @@ export default function GoalsPage() {
           {trainingLoad && (
             <div className="grid grid-cols-3 gap-2 mb-3 text-center text-sm">
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-                <p className="text-lg font-bold text-blue-400">{trainingLoad.weekBikeMiles}</p>
-                <p className="text-xs text-zinc-500">Bike mi</p>
+                <p className="text-lg font-bold text-blue-400">{trainingLoad.weekBikeKm ?? 0}</p>
+                <p className="text-xs text-zinc-500">Bike km</p>
               </div>
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
-                <p className="text-lg font-bold text-green-400">{trainingLoad.weekRunMiles}</p>
-                <p className="text-xs text-zinc-500">Run mi</p>
+                <p className="text-lg font-bold text-green-400">{trainingLoad.weekRunKm ?? 0}</p>
+                <p className="text-xs text-zinc-500">Run km</p>
               </div>
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
                 <p className="text-lg font-bold text-purple-400">
@@ -317,7 +317,7 @@ export default function GoalsPage() {
                     <div className="flex-shrink-0 text-right">
                       {a.distance > 0 && (
                         <p className="text-sm font-semibold text-zinc-200">
-                          {a.distance} mi
+                          {a.distance} km
                         </p>
                       )}
                       <p className="text-xs text-zinc-500">

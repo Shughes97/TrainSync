@@ -154,36 +154,40 @@ export default function SyncStatusCard() {
       {tl && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">This week&apos;s training</p>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-              <p className="text-sm font-bold text-blue-400 leading-none">{tl.weekBikeMiles} mi</p>
+              <p className="text-sm font-bold text-blue-400 leading-none">{tl.weekBikeKm ?? 0} km</p>
               <p className="text-xs text-blue-500/70 mt-1">🚴 Cycling</p>
             </div>
             <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3">
-              <p className="text-sm font-bold text-green-400 leading-none">{tl.weekRunMiles} mi</p>
+              <p className="text-sm font-bold text-green-400 leading-none">{tl.weekRunKm ?? 0} km</p>
               <p className="text-xs text-green-500/70 mt-1">🏃 Running</p>
             </div>
             <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3">
               <p className="text-sm font-bold text-orange-400 leading-none">
-                {tl.weekGymMins >= 60
-                  ? `${Math.floor(tl.weekGymMins / 60)}h ${tl.weekGymMins % 60}m`
-                  : `${tl.weekGymMins}m`}
+                {formatMins((tl.weekCrossfitMins ?? 0) * 60)}
               </p>
-              <p className="text-xs text-orange-500/70 mt-1">🏋️ Gym</p>
+              <p className="text-xs text-orange-500/70 mt-1">🏋️ CrossFit</p>
+            </div>
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3">
+              <p className="text-sm font-bold text-purple-400 leading-none">
+                {formatMins((tl.weekStrengthMins ?? 0) * 60)}
+              </p>
+              <p className="text-xs text-purple-500/70 mt-1">💪 Strength</p>
             </div>
           </div>
           {tl.sessionsScheduled > 0 && (
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl px-3 py-2 flex items-center justify-between">
-              <p className="text-xs text-purple-400/80">Sessions completed this week</p>
-              <p className="text-sm font-bold text-purple-400">
+            <div className="bg-zinc-800/50 rounded-xl px-3 py-2 flex items-center justify-between">
+              <p className="text-xs text-zinc-500">Sessions completed this week</p>
+              <p className="text-sm font-bold text-zinc-300">
                 {tl.sessionsCompleted} / {tl.sessionsScheduled}
               </p>
             </div>
           )}
-          {tl.longestRideMiles > 0 && (
+          {(tl.longestRideKm ?? 0) > 0 && (
             <p className="text-xs text-zinc-500">
               Longest ride:{" "}
-              <span className="font-medium text-zinc-300">{tl.longestRideMiles} mi</span>
+              <span className="font-medium text-zinc-300">{tl.longestRideKm} km</span>
               {tl.longRideTargetHit && (
                 <span className="ml-1 text-green-400 font-medium">Long ride target hit!</span>
               )}
@@ -217,7 +221,7 @@ export default function SyncStatusCard() {
               <span className="flex-shrink-0">{activityIcon(a.type)}</span>
               <span className="truncate flex-1 text-zinc-300">{a.name}</span>
               <span className="text-zinc-500 flex-shrink-0">
-                {a.distance > 0 ? `${a.distance} mi` : formatMins(a.moving_time)}
+                {a.distance > 0 ? `${a.distance} km` : formatMins(a.moving_time)}
               </span>
             </div>
           ))}

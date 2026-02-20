@@ -72,7 +72,7 @@ export interface TrainingPhase {
   endWeek: number;
   focus: PhaseType;
   emoji: string;
-  longRideTargetMiles: number;
+  longRideTargetKm: number;
   weeklyFocusNote: string;
   weeklyPlan: Array<{ type: WorkoutType; isHard: boolean }>;
 }

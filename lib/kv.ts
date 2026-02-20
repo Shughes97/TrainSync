@@ -42,13 +42,14 @@ export interface StoredWeekSchedule {
 }
 
 export interface TrainingLoad {
-  weekBikeMiles: number;
-  weekRunMiles: number;
-  weekGymMins: number;
+  weekBikeKm: number;
+  weekRunKm: number;
+  weekCrossfitMins: number;
+  weekStrengthMins: number;
   sessionsCompleted: number;
   sessionsScheduled: number;
   longRideTargetHit: boolean;
-  longestRideMiles: number;
+  longestRideKm: number;
 }
 
 export interface RescheduleEvent {

@@ -54,9 +54,9 @@ export const TRAINING_PHASES: TrainingPhase[] = [
     endWeek: 4,
     focus: "endurance_base",
     emoji: "🏗️",
-    longRideTargetMiles: 75,
+    longRideTargetKm: 121,
     weeklyFocusNote:
-      "Build your aerobic base. Work up to 75 miles on the long ride by end of this phase.",
+      "Build your aerobic base. Work up to 121 km on the long ride by end of this phase.",
     weeklyPlan: [
       { type: "Bike", isHard: false },
       { type: "Crossfit", isHard: true },
@@ -71,9 +71,9 @@ export const TRAINING_PHASES: TrainingPhase[] = [
     endWeek: 8,
     focus: "peak_endurance",
     emoji: "⚡",
-    longRideTargetMiles: 90,
+    longRideTargetKm: 145,
     weeklyFocusNote:
-      "Push your limits. Target an 85–90 mile ride this weekend.",
+      "Push your limits. Target a 135–145 km ride this weekend.",
     weeklyPlan: [
       { type: "Bike", isHard: false },
       { type: "Crossfit", isHard: true },
@@ -88,9 +88,9 @@ export const TRAINING_PHASES: TrainingPhase[] = [
     endWeek: 11,
     focus: "taper",
     emoji: "🎯",
-    longRideTargetMiles: 60,
+    longRideTargetKm: 97,
     weeklyFocusNote:
-      "Back off the volume. Keep sessions short and sharp. Max 60 miles on the bike.",
+      "Back off the volume. Keep sessions short and sharp. Max 97 km on the bike.",
     weeklyPlan: [
       { type: "Bike", isHard: false },
       { type: "Crossfit", isHard: true },
@@ -103,9 +103,9 @@ export const TRAINING_PHASES: TrainingPhase[] = [
     endWeek: 12,
     focus: "event",
     emoji: "🏆",
-    longRideTargetMiles: 100,
+    longRideTargetKm: 161,
     weeklyFocusNote:
-      "Race week! Stay loose and trust your training. The 100-mile ride is this weekend.",
+      "Race week! Stay loose and trust your training. The 161 km ride is this weekend.",
     weeklyPlan: [
       { type: "Crossfit", isHard: false },
       { type: "Run", isHard: false },
@@ -117,7 +117,7 @@ export const TRAINING_PHASES: TrainingPhase[] = [
     endWeek: 17,
     focus: "hypertrophy",
     emoji: "💪",
-    longRideTargetMiles: 40,
+    longRideTargetKm: 64,
     weeklyFocusNote:
       "Century done! Build visible muscle with a push/pull/legs split. Short maintenance rides only.",
     weeklyPlan: [

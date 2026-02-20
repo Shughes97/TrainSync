@@ -59,8 +59,8 @@ export async function isStravaConnected(): Promise<boolean> {
 
 // ─── Activity fetching ────────────────────────────────────────────────────────
 
-function metersToMiles(m: number): number {
-  return Math.round((m / 1609.34) * 10) / 10;
+function metersToKm(m: number): number {
+  return Math.round((m / 1000) * 10) / 10;
 }
 
 /** Fetch the last 60 days of Strava activities and clean them up for storage. */
@@ -88,7 +88,7 @@ export async function fetchAndStoreActivities(accessToken: string): Promise<Stor
     id: a.id,
     type: a.type,
     name: a.name,
-    distance: metersToMiles(a.distance),
+    distance: metersToKm(a.distance),
     moving_time: a.moving_time,
     start_date: a.start_date,
     suffer_score: a.suffer_score ?? null,
