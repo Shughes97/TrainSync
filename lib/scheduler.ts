@@ -43,7 +43,7 @@ const TRAVEL_BUFFER_MIN = 30;
 const WEEKLY_PLAN: Array<{ type: WorkoutType; isHard: boolean }> = [
   { type: "Crossfit", isHard: true },
   { type: "Crossfit", isHard: true },
-  { type: "Crossfit", isHard: true },
+  { type: "Strength", isHard: false },
   { type: "Run", isHard: false },
   { type: "Bike", isHard: false },
 ];
