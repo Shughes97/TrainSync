@@ -11,7 +11,6 @@ import { kv } from "@vercel/kv";
 import { fetchAndStoreActivities, stravaTypeToWorkout } from "./strava";
 import { getWeekSchedule, type TrainingLoad } from "./kv";
 import { getCurrentPhase } from "./training-config";
-import { getWeekStart } from "./scheduler";
 
 export interface StravaSyncResult {
   activitiesCount: number;
@@ -48,14 +47,12 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
     });
   }
 
-  // 3. Compute this-week training load
-  const weekStart = getWeekStart();
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
+  // 3. Compute rolling 7-day training load
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const thisWeek = activities.filter((a) => {
     const d = new Date(a.start_date);
-    return d >= weekStart && d < weekEnd;
+    return d >= sevenDaysAgo;
   });
 
   const weekBikeKm = thisWeek

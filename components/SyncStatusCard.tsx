@@ -153,7 +153,7 @@ export default function SyncStatusCard() {
       {/* Training load — this week */}
       {tl && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">This week&apos;s training</p>
+          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Last 7 days</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
               <p className="text-sm font-bold text-blue-400 leading-none">{tl.weekBikeKm ?? 0} km</p>
