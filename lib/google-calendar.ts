@@ -210,6 +210,18 @@ export async function fetchEventsForWindow(
 }
 
 /**
+ * Delete a calendar event by ID.
+ */
+export async function deleteCalendarEvent(
+  accessToken: string,
+  eventId: string
+): Promise<void> {
+  const auth = getOAuth2Client(accessToken);
+  const calendar = google.calendar({ version: "v3", auth });
+  await calendar.events.delete({ calendarId: "primary", eventId });
+}
+
+/**
  * Fetch existing TrainSync workout events for the current week.
  */
 export async function fetchWeekEvents(

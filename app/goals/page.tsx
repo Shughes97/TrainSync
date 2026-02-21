@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import BottomNav from "@/components/BottomNav";
 import {
   GOALS,
   TRAINING_PHASES,
@@ -56,7 +57,7 @@ export default function GoalsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-zinc-950 pb-20">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur border-b border-zinc-800/60">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
@@ -336,6 +337,8 @@ export default function GoalsPage() {
 
         <div className="h-4" />
       </main>
+
+      <BottomNav />
     </div>
   );
 }

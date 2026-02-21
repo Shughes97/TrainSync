@@ -8,8 +8,8 @@ import WeeklyOverview from "@/components/WeeklyOverview";
 import WeekFocusCard from "@/components/WeekFocusCard";
 import SyncStatusCard from "@/components/SyncStatusCard";
 import TimePickerModal from "@/components/TimePickerModal";
+import BottomNav from "@/components/BottomNav";
 import Image from "next/image";
-import Link from "next/link";
 import { getWeekStart } from "@/lib/scheduler";
 import {
   getCurrentPhase,
@@ -221,7 +221,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-zinc-950 pb-20">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur border-b border-zinc-800/60">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
@@ -230,12 +230,6 @@ export default function Dashboard() {
             <span className="font-bold text-white text-lg">TrainSync</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/goals"
-              className="text-xs text-zinc-500 hover:text-white transition-colors"
-            >
-              Plan
-            </Link>
             {session?.user?.image && (
               <Image
                 src={session.user.image}
@@ -459,6 +453,8 @@ export default function Dashboard() {
           onClose={() => setEditingSession(null)}
         />
       )}
+
+      <BottomNav />
     </div>
   );
 }
