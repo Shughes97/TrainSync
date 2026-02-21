@@ -27,6 +27,8 @@ export interface SchedulerOptions {
   weekStart: Date;
   /** Optional: days that already have hard sessions (Crossfit/Strength) */
   hardSessionDays?: string[];
+  /** Optional: days that already have any scheduled workout — proposals will not be placed here */
+  scheduledDays?: string[];
   /** Optional: fatigue score per day (0–10), future use */
   fatigueByDay?: Record<string, number>;
   /** Optional: override the default 5-session weekly plan template */

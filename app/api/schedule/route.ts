@@ -72,10 +72,13 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const scheduledDays = existingEvents.map((e) => e.start.substring(0, 10));
+
     const result = buildWeeklyPlan({
       busySlots,
       weekStart,
       weeklyPlan: remainingPlan,
+      scheduledDays,
     });
 
     return NextResponse.json({

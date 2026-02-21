@@ -156,7 +156,7 @@ function spreadSelect(days: string[], count: number): Set<string> {
 // ─── Main Scheduler ───────────────────────────────────────────────────────────
 
 export function buildWeeklyPlan(options: SchedulerOptions): SchedulerResult {
-  const { busySlots, weekStart, hardSessionDays = [] } = options;
+  const { busySlots, weekStart, hardSessionDays = [], scheduledDays = [] } = options;
   // Use the phase-specific plan if provided, otherwise fall back to the default.
   const plan = options.weeklyPlan ?? WEEKLY_PLAN;
   const warnings: string[] = [];
@@ -195,7 +195,7 @@ export function buildWeeklyPlan(options: SchedulerOptions): SchedulerResult {
   }
 
   const proposals: WorkoutProposal[] = [];
-  const usedDays = new Set<string>();
+  const usedDays = new Set<string>(scheduledDays);
   const hardDays = new Set<string>(hardSessionDays);
 
   // Hard sessions first to get priority slot selection
