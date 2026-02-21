@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { createCalendarEvent, fetchWeekEvents } from "@/lib/google-calendar";
+import { createCalendarEvent, fetchWeekEvents, fetchAllEventsByDay } from "@/lib/google-calendar";
 import { getWeekStart } from "@/lib/scheduler";
 import { kv, storeGoogleTokens } from "@/lib/kv";
 import type { StoredSession, StoredWeekSchedule } from "@/lib/kv";
@@ -90,13 +90,12 @@ export async function GET(req: NextRequest) {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 7);
 
-    const events = await fetchWeekEvents(
-      session.accessToken,
-      weekStart,
-      weekEnd
-    );
+    const [events, allEventsByDay] = await Promise.all([
+      fetchWeekEvents(session.accessToken, weekStart, weekEnd),
+      fetchAllEventsByDay(session.accessToken, weekStart, weekEnd),
+    ]);
 
-    return NextResponse.json({ events });
+    return NextResponse.json({ events, allEventsByDay });
   } catch (error) {
     console.error("Calendar GET error:", error);
     return NextResponse.json(
