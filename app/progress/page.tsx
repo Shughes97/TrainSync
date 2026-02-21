@@ -52,8 +52,8 @@ function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   const total = payload.reduce((s: number, p: { value: number }) => s + (p.value ?? 0), 0);
   return (
-    <div className="bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-xs shadow-lg">
-      <p className="text-zinc-400 font-medium mb-1">{label}</p>
+    <div className="bg-white border border-gray-300 rounded-xl px-3 py-2 text-xs shadow-lg">
+      <p className="text-gray-500 font-medium mb-1">{label}</p>
       {payload.map((p: { name: string; value: number; color: string }) =>
         p.value > 0 ? (
           <p key={p.name} style={{ color: p.color }}>
@@ -62,7 +62,7 @@ function CustomTooltip({ active, payload, label }: any) {
         ) : null
       )}
       {total > 0 && (
-        <p className="text-zinc-300 font-semibold mt-1 border-t border-zinc-700 pt-1">
+        <p className="text-gray-700 font-semibold mt-1 border-t border-gray-300 pt-1">
           Total: {Math.round(total * 10) / 10}h
         </p>
       )}
@@ -116,26 +116,26 @@ export default function ProgressPage() {
 
   if (status === "loading" || (loading && !error)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur border-b border-zinc-800/60">
+      <header className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <span className="font-bold text-white text-lg">Progress</span>
+          <span className="font-bold text-gray-900 text-lg">Progress</span>
           {/* Toggle */}
-          <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-xl p-1">
             <button
               onClick={() => setMode("weekly")}
               className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
                 mode === "weekly"
                   ? "bg-indigo-600 text-white"
-                  : "text-zinc-400 hover:text-white"
+                  : "text-gray-500 hover:text-gray-900"
               }`}
             >
               Last 14 days
@@ -145,7 +145,7 @@ export default function ProgressPage() {
               className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-colors ${
                 mode === "monthly"
                   ? "bg-indigo-600 text-white"
-                  : "text-zinc-400 hover:text-white"
+                  : "text-gray-500 hover:text-gray-900"
               }`}
             >
               Last 12 weeks
@@ -156,21 +156,21 @@ export default function ProgressPage() {
 
       <main className="max-w-lg mx-auto px-4 py-4 space-y-4">
         {error && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-            <p className="text-red-400 text-sm">{error}</p>
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <p className="text-red-600 text-sm">{error}</p>
           </div>
         )}
 
         {/* Chart card */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-xs text-zinc-500 mb-4 uppercase tracking-widest font-semibold">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
+          <p className="text-xs text-gray-500 mb-4 uppercase tracking-widest font-semibold">
             {mode === "weekly" ? "Daily training hours" : "Weekly training hours"}
           </p>
 
           {!hasData ? (
             <div className="flex flex-col items-center justify-center py-16 gap-2">
-              <p className="text-zinc-500 text-sm">No activity data yet.</p>
-              <p className="text-zinc-600 text-xs">Sync Strava to see your training history.</p>
+              <p className="text-gray-500 text-sm">No activity data yet.</p>
+              <p className="text-gray-400 text-xs">Sync Strava to see your training history.</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
@@ -210,15 +210,15 @@ export default function ProgressPage() {
             return (
               <div
                 key={key}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 flex items-center gap-2.5"
+                className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex items-center gap-2.5"
               >
                 <div
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: COLORS[key] }}
                 />
                 <div className="min-w-0">
-                  <p className="text-xs text-zinc-400">{LABELS[key]}</p>
-                  <p className="text-sm font-semibold text-white">
+                  <p className="text-xs text-gray-500">{LABELS[key]}</p>
+                  <p className="text-sm font-semibold text-gray-900">
                     {Math.round(total * 10) / 10}h
                   </p>
                 </div>

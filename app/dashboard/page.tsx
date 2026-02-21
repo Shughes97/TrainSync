@@ -213,21 +213,21 @@ export default function Dashboard() {
 
   if (status === "loading" || (pageState === "loading" && proposals.length === 0)) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-zinc-950">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
         <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-zinc-400 text-sm">Scanning your calendar…</p>
+        <p className="text-gray-500 text-sm">Scanning your calendar…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur border-b border-zinc-800/60">
+      <header className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl">⚡</span>
-            <span className="font-bold text-white text-lg">TrainSync</span>
+            <span className="font-bold text-gray-900 text-lg">TrainSync</span>
           </div>
           <div className="flex items-center gap-3">
             {session?.user?.image && (
@@ -241,7 +241,7 @@ export default function Dashboard() {
             )}
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="text-xs text-zinc-500 hover:text-white transition-colors"
+              className="text-xs text-gray-500 hover:text-gray-900 transition-colors"
             >
               Sign out
             </button>
@@ -252,32 +252,32 @@ export default function Dashboard() {
         <div className="max-w-lg mx-auto px-4 pb-3 flex items-center justify-between gap-2">
           <button
             onClick={goToPrevWeek}
-            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             aria-label="Previous week"
           >
             ←
           </button>
 
           <div className="flex flex-col items-center">
-            <span className="text-sm font-medium text-white">
+            <span className="text-sm font-medium text-gray-900">
               {weekLabel(currentWeekISO)}
             </span>
             {!isCurrentWeek && (
               <button
                 onClick={goToThisWeek}
-                className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors mt-0.5"
+                className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors mt-0.5"
               >
                 Back to this week
               </button>
             )}
             {isCurrentWeek && (
-              <span className="text-xs text-zinc-500 mt-0.5">This week</span>
+              <span className="text-xs text-gray-500 mt-0.5">This week</span>
             )}
           </div>
 
           <button
             onClick={goToNextWeek}
-            className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
             aria-label="Next week"
           >
             →
@@ -299,10 +299,10 @@ export default function Dashboard() {
 
         {/* Success banner */}
         {pageState === "done" && (
-          <div className="bg-green-500/10 border border-green-500/30 rounded-2xl p-4 flex items-start gap-3">
-            <span className="text-green-400 text-xl">✓</span>
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-green-600 text-xl">✓</span>
             <div>
-              <p className="text-green-400 font-medium text-sm">Week scheduled!</p>
+              <p className="text-green-700 font-medium text-sm">Week scheduled!</p>
               <p className="text-green-300/70 text-sm mt-0.5">
                 {createdCount} session{createdCount !== 1 ? "s" : ""} added to your
                 Google Calendar.
@@ -313,8 +313,8 @@ export default function Dashboard() {
 
         {/* Error banner */}
         {(pageState === "error" || scheduleError) && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4">
-            <p className="text-red-400 text-sm">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <p className="text-red-600 text-sm">
               {scheduleError ?? "Something went wrong."}
             </p>
             <button
@@ -328,9 +328,9 @@ export default function Dashboard() {
 
         {/* Warnings */}
         {warnings.length > 0 && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4 space-y-1">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
             {warnings.map((w, i) => (
-              <p key={i} className="text-yellow-300 text-sm">
+              <p key={i} className="text-amber-700 text-sm">
                 ⚠ {w}
               </p>
             ))}
@@ -345,13 +345,13 @@ export default function Dashboard() {
 
         {/* Proposals header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-semibold text-white">
+          <h2 className="text-base font-semibold text-gray-900">
             {isCurrentWeek ? "This Week's Plan" : "Proposed Plan"}
           </h2>
           {pendingCount > 0 && pageState !== "done" && (
             <button
               onClick={handleAcceptAll}
-              className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors font-medium"
+              className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-medium"
             >
               Accept all
             </button>
@@ -367,15 +367,15 @@ export default function Dashboard() {
           <div className="text-center py-16">
             {scheduledCount > 0 ? (
               <>
-                <p className="text-zinc-400 text-sm font-medium">Week fully scheduled</p>
-                <p className="text-zinc-600 text-xs mt-1">
+                <p className="text-gray-500 text-sm font-medium">Week fully scheduled</p>
+                <p className="text-gray-400 text-xs mt-1">
                   You already have {scheduledCount} session{scheduledCount !== 1 ? "s" : ""} on your calendar this week.
                 </p>
               </>
             ) : (
               <>
-                <p className="text-zinc-500 text-sm">No free slots found this week.</p>
-                <p className="text-zinc-600 text-xs mt-1">
+                <p className="text-gray-500 text-sm">No free slots found this week.</p>
+                <p className="text-gray-400 text-xs mt-1">
                   Your calendar looks fully booked in the 6:30–8am and 5–8pm windows.
                 </p>
               </>
@@ -436,7 +436,7 @@ export default function Dashboard() {
         {pageState === "done" && (
           <button
             onClick={() => loadSchedule(currentWeekISO)}
-            className="w-full py-3 rounded-2xl border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 text-sm font-medium transition-colors"
+            className="w-full py-3 rounded-2xl border border-gray-200 text-gray-500 hover:text-gray-900 hover:border-gray-400 text-sm font-medium transition-colors"
           >
             Refresh Proposals
           </button>

@@ -57,21 +57,21 @@ export default function GoalsPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-zinc-950/90 backdrop-blur border-b border-zinc-800/60">
+      <header className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
-              className="text-zinc-400 hover:text-white transition-colors text-lg"
+              className="text-gray-500 hover:text-gray-900 transition-colors text-lg"
             >
               ←
             </Link>
-            <span className="font-bold text-white text-lg">Training Plan</span>
+            <span className="font-bold text-gray-900 text-lg">Training Plan</span>
           </div>
           {currentWeek >= 1 && currentWeek <= 17 && (
-            <span className="text-sm text-zinc-500">Week {currentWeek}</span>
+            <span className="text-sm text-gray-500">Week {currentWeek}</span>
           )}
         </div>
       </header>
@@ -90,19 +90,19 @@ export default function GoalsPage() {
             return (
               <div
                 key={goal.id}
-                className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4"
+                className="bg-white border border-gray-200 rounded-2xl p-4"
               >
                 <div className="text-2xl mb-2">{goal.emoji}</div>
                 <p className="text-sm font-semibold text-white leading-tight">
                   {goal.label}
                 </p>
-                <p className="text-xs text-zinc-500 mt-0.5">{dateStr}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{dateStr}</p>
                 {days > 0 ? (
                   <>
                     <p className="text-2xl font-bold text-white mt-3">
                       {weeks}w
                     </p>
-                    <p className="text-xs text-zinc-500">{days} days away</p>
+                    <p className="text-xs text-gray-500">{days} days away</p>
                   </>
                 ) : (
                   <p className="text-sm font-bold text-green-400 mt-3">Done! 🎉</p>
@@ -114,7 +114,7 @@ export default function GoalsPage() {
 
         {/* Phase timeline */}
         <div>
-          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
             Training Phases
           </h2>
           <div className="space-y-2">
@@ -154,8 +154,8 @@ export default function GoalsPage() {
                     isCurrent
                       ? "bg-indigo-950/40 border-indigo-500/40"
                       : isPast
-                      ? "bg-zinc-900/30 border-zinc-800/40 opacity-50"
-                      : "bg-zinc-900/20 border-zinc-800/30"
+                      ? "bg-white/30 border-gray-200 opacity-50"
+                      : "bg-white/20 border-gray-200/30"
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -168,8 +168,8 @@ export default function GoalsPage() {
                               isCurrent
                                 ? "text-indigo-300"
                                 : isPast
-                                ? "text-zinc-500"
-                                : "text-zinc-300"
+                                ? "text-gray-500"
+                                : "text-gray-700"
                             }`}
                           >
                             {phase.name}
@@ -180,13 +180,13 @@ export default function GoalsPage() {
                             </span>
                           )}
                           {isPast && (
-                            <span className="text-zinc-600 text-xs">✓</span>
+                            <span className="text-gray-400 text-xs">✓</span>
                           )}
                         </div>
-                        <p className="text-xs text-zinc-600">{dateRange}</p>
+                        <p className="text-xs text-gray-400">{dateRange}</p>
                       </div>
                     </div>
-                    <span className="text-xs text-zinc-600 flex-shrink-0 mt-0.5">
+                    <span className="text-xs text-gray-400 flex-shrink-0 mt-0.5">
                       {weeksInPhase}w
                     </span>
                   </div>
@@ -205,14 +205,14 @@ export default function GoalsPage() {
 
                   {/* Focus note for current phase only */}
                   {isCurrent && (
-                    <p className="text-xs text-zinc-400 leading-relaxed">
+                    <p className="text-xs text-gray-500 leading-relaxed">
                       {phase.weeklyFocusNote}
                     </p>
                   )}
 
                   {/* Ride target for upcoming phases */}
                   {!isCurrent && !isPast && phase.longRideTargetKm > 0 && (
-                    <p className="text-xs text-zinc-600">
+                    <p className="text-xs text-gray-400">
                       Target ride: {phase.longRideTargetKm} km
                     </p>
                   )}
@@ -241,13 +241,13 @@ export default function GoalsPage() {
 
         {/* Strava activity feed */}
         <div>
-          <h2 className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">
+          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-3">
             Recent Activities
           </h2>
 
           {stravaConnected === false && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 text-center">
-              <p className="text-sm text-zinc-400 mb-3">
+            <div className="bg-white border border-gray-200 rounded-2xl p-5 text-center">
+              <p className="text-sm text-gray-500 mb-3">
                 Connect Strava to see your activity history
               </p>
               <a
@@ -260,26 +260,26 @@ export default function GoalsPage() {
           )}
 
           {stravaConnected && activities.length === 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
-              <p className="text-sm text-zinc-500">No activities synced yet.</p>
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 text-center">
+              <p className="text-sm text-gray-500">No activities synced yet.</p>
             </div>
           )}
 
           {trainingLoad && (
             <div className="grid grid-cols-3 gap-2 mb-3 text-center text-sm">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
                 <p className="text-lg font-bold text-blue-400">{trainingLoad.weekBikeKm ?? 0}</p>
-                <p className="text-xs text-zinc-500">Bike km</p>
+                <p className="text-xs text-gray-500">Bike km</p>
               </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
                 <p className="text-lg font-bold text-green-400">{trainingLoad.weekRunKm ?? 0}</p>
-                <p className="text-xs text-zinc-500">Run km</p>
+                <p className="text-xs text-gray-500">Run km</p>
               </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+              <div className="bg-white border border-gray-200 rounded-xl p-3">
                 <p className="text-lg font-bold text-purple-400">
                   {trainingLoad.sessionsCompleted}/{trainingLoad.sessionsScheduled}
                 </p>
-                <p className="text-xs text-zinc-500">Done</p>
+                <p className="text-xs text-gray-500">Done</p>
               </div>
             </div>
           )}
@@ -301,7 +301,7 @@ export default function GoalsPage() {
                     className={`flex items-center justify-between rounded-xl px-4 py-3 border ${
                       isLongRide && longRideTarget > 0
                         ? "bg-indigo-950/30 border-indigo-500/30"
-                        : "bg-zinc-900 border-zinc-800"
+                        : "bg-white border-gray-200"
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
@@ -309,19 +309,19 @@ export default function GoalsPage() {
                         {activityTypeLabel(a.type)}
                       </span>
                       <div className="min-w-0">
-                        <p className="text-sm text-zinc-200 font-medium truncate">
+                        <p className="text-sm text-gray-700 font-medium truncate">
                           {a.name}
                         </p>
-                        <p className="text-xs text-zinc-500">{dateStr}</p>
+                        <p className="text-xs text-gray-500">{dateStr}</p>
                       </div>
                     </div>
                     <div className="flex-shrink-0 text-right">
                       {a.distance > 0 && (
-                        <p className="text-sm font-semibold text-zinc-200">
+                        <p className="text-sm font-semibold text-gray-700">
                           {a.distance} km
                         </p>
                       )}
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-gray-500">
                         {formatMins(a.moving_time)}
                       </p>
                       {isLongRide && longRideTarget > 0 && (

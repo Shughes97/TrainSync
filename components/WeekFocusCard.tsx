@@ -31,8 +31,6 @@ export default function WeekFocusCard({
   const weeksUntilCentury = Math.ceil(daysUntilCentury / 7);
   const weeksUntilHoliday = Math.ceil(daysUntilHoliday / 7);
 
-  // Build per-slot status tracker. For phases with multiple sessions of the
-  // same type (e.g. 3× Strength) track each slot individually.
   const proposalsByType: Record<string, WorkoutProposal[]> = {};
   for (const p of proposals) {
     const key = p.session.type;
@@ -53,28 +51,28 @@ export default function WeekFocusCard({
   });
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+    <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3 shadow-sm">
       {/* Phase header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl">{phase.emoji}</span>
           <div>
-            <p className="text-sm font-semibold text-white">{phase.name}</p>
-            <p className="text-xs text-zinc-400">
+            <p className="text-sm font-semibold text-gray-900">{phase.name}</p>
+            <p className="text-xs text-gray-500">
               Week {weekInPhase} of {weeksInPhase}
             </p>
           </div>
         </div>
         <Link
           href="/goals"
-          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+          className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors"
         >
           View plan →
         </Link>
       </div>
 
       {/* Phase progress bar */}
-      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
         <div
           className="h-full bg-indigo-500 rounded-full transition-all duration-500"
           style={{ width: `${Math.max(progressPct, 4)}%` }}
@@ -82,28 +80,28 @@ export default function WeekFocusCard({
       </div>
 
       {/* Weekly focus note */}
-      <p className="text-sm text-zinc-300 leading-relaxed">
+      <p className="text-sm text-gray-600 leading-relaxed">
         {phase.weeklyFocusNote}
       </p>
 
       {/* Goal countdowns */}
       <div className="flex gap-2">
         {daysUntilCentury > 0 && (
-          <div className="flex-1 bg-zinc-800/60 rounded-xl px-3 py-2 text-center">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-0.5">
+          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
               🚴 Century Ride
             </p>
-            <p className="text-base font-bold text-white">
+            <p className="text-base font-bold text-gray-900">
               {weeksUntilCentury}w
             </p>
           </div>
         )}
         {daysUntilHoliday > 0 && (
-          <div className="flex-1 bg-zinc-800/60 rounded-xl px-3 py-2 text-center">
-            <p className="text-[10px] text-zinc-500 uppercase tracking-wide mb-0.5">
+          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-center">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
               🏖️ Holiday
             </p>
-            <p className="text-base font-bold text-white">
+            <p className="text-base font-bold text-gray-900">
               {weeksUntilHoliday}w
             </p>
           </div>
@@ -121,21 +119,17 @@ export default function WeekFocusCard({
               title={slot.type}
               className={`flex-1 h-9 rounded-lg flex flex-col items-center justify-center gap-0.5 border transition-all ${
                 isActive
-                  ? "bg-indigo-600/20 border-indigo-500/40"
+                  ? "bg-indigo-50 border-indigo-200"
                   : isSkipped
-                  ? "bg-zinc-800/20 border-zinc-700/30"
-                  : "bg-zinc-800/40 border-zinc-700/30"
+                  ? "bg-gray-100 border-gray-200"
+                  : "bg-gray-100 border-gray-200"
               }`}
             >
-              <span
-                className={`text-sm leading-none ${
-                  isActive ? "opacity-100" : "opacity-25"
-                }`}
-              >
+              <span className={`text-sm leading-none ${isActive ? "opacity-100" : "opacity-30"}`}>
                 {slot.icon}
               </span>
               {isSkipped && (
-                <span className="text-[8px] text-zinc-600 leading-none">skip</span>
+                <span className="text-[8px] text-gray-400 leading-none">skip</span>
               )}
             </div>
           );

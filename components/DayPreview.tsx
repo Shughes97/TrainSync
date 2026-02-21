@@ -7,16 +7,15 @@ interface DayPreviewProps {
   events: CalEvent[];
 }
 
-// Context windows in minutes from midnight — wide enough to see adjacent events
 const WINDOW_CONTEXT = {
-  morning:        { start: 6 * 60,        end: 9 * 60 + 30 },  // 6:00 – 9:30am (weekday)
-  morningWeekend: { start: 7 * 60 + 30,  end: 13 * 60 },       // 7:30 – 1:00pm (weekend)
-  evening:        { start: 16 * 60,       end: 21 * 60 },       // 4:00 – 9:00pm
+  morning:        { start: 6 * 60,        end: 9 * 60 + 30 },
+  morningWeekend: { start: 7 * 60 + 30,  end: 13 * 60 },
+  evening:        { start: 16 * 60,       end: 21 * 60 },
 } as const;
 
 const WORKOUT_COLORS: Record<WorkoutType, string> = {
   Crossfit: "bg-orange-500",
-  Strength: "bg-yellow-500",
+  Strength: "bg-amber-500",
   Run:      "bg-green-500",
   Bike:     "bg-blue-500",
 };
@@ -36,7 +35,6 @@ function fmtMins(mins: number): string {
     : `${hour}${period}`;
 }
 
-/** Returns left% and width% for a time range within the context window */
 function slotStyle(
   startMins: number,
   endMins: number,
@@ -63,7 +61,6 @@ export default function DayPreview({ session, events }: DayPreviewProps) {
   const workoutStartMins = toMins(session.startISO);
   const workoutEndMins = workoutStartMins + 60;
 
-  // Only show events that overlap the context window (skip the workout itself)
   const relevantEvents = events.filter((evt) => {
     const eStart = toMins(evt.start);
     const eEnd = toMins(evt.end);
@@ -73,7 +70,6 @@ export default function DayPreview({ session, events }: DayPreviewProps) {
   const workoutStyle = slotStyle(workoutStartMins, workoutEndMins, windowStart, windowDuration);
   const workoutColorClass = WORKOUT_COLORS[session.type];
 
-  // Build tick marks at each hour
   const ticks: number[] = [];
   const firstHour = Math.ceil(windowStart / 60) * 60;
   for (let t = firstHour; t < windowEnd; t += 60) {
@@ -81,19 +77,16 @@ export default function DayPreview({ session, events }: DayPreviewProps) {
   }
 
   return (
-    <div className="mt-3 pt-3 border-t border-white/5 select-none">
-      {/* Timeline strip */}
-      <div className="relative h-7 bg-zinc-800/60 rounded-lg overflow-hidden">
-        {/* Hour tick lines */}
+    <div className="mt-3 pt-3 border-t border-gray-200 select-none">
+      <div className="relative h-7 bg-gray-100 rounded-lg overflow-hidden">
         {ticks.map((t) => (
           <div
             key={t}
-            className="absolute top-0 bottom-0 w-px bg-zinc-700/40"
+            className="absolute top-0 bottom-0 w-px bg-gray-300/60"
             style={{ left: `${((t - windowStart) / windowDuration) * 100}%` }}
           />
         ))}
 
-        {/* Existing calendar events */}
         {relevantEvents.map((evt) => {
           const eStart = toMins(evt.start);
           const eEnd = toMins(evt.end);
@@ -101,20 +94,19 @@ export default function DayPreview({ session, events }: DayPreviewProps) {
           return (
             <div
               key={evt.id}
-              className="absolute top-1 bottom-1 bg-zinc-500/50 rounded flex items-center overflow-hidden px-1"
+              className="absolute top-1 bottom-1 bg-gray-400/30 rounded flex items-center overflow-hidden px-1"
               style={style}
               title={evt.summary}
             >
-              <span className="text-[9px] text-zinc-300 truncate leading-none">
+              <span className="text-[9px] text-gray-600 truncate leading-none">
                 {evt.summary}
               </span>
             </div>
           );
         })}
 
-        {/* Proposed workout block */}
         <div
-          className={`absolute top-0 bottom-0 ${workoutColorClass} opacity-70 rounded flex items-center justify-center overflow-hidden`}
+          className={`absolute top-0 bottom-0 ${workoutColorClass} opacity-80 rounded flex items-center justify-center overflow-hidden`}
           style={workoutStyle}
         >
           <span className="text-[9px] font-semibold text-white truncate px-1 leading-none">
@@ -123,19 +115,17 @@ export default function DayPreview({ session, events }: DayPreviewProps) {
         </div>
       </div>
 
-      {/* Time labels below strip */}
       <div className="relative h-4 mt-0.5">
         {ticks.map((t) => (
           <span
             key={t}
-            className="absolute text-[9px] text-zinc-600 -translate-x-1/2"
+            className="absolute text-[9px] text-gray-400 -translate-x-1/2"
             style={{ left: `${((t - windowStart) / windowDuration) * 100}%` }}
           >
             {fmtMins(t)}
           </span>
         ))}
-        {/* End label */}
-        <span className="absolute right-0 text-[9px] text-zinc-600">
+        <span className="absolute right-0 text-[9px] text-gray-400">
           {fmtMins(windowEnd)}
         </span>
       </div>

@@ -77,7 +77,6 @@ export default function SyncStatusCard() {
         } else {
           setError(calData.error ?? "Calendar sync failed");
         }
-        // Still refresh status — Strava may have synced fine
         await fetchStatus();
       } else {
         await fetchStatus();
@@ -91,10 +90,10 @@ export default function SyncStatusCard() {
 
   if (!status) {
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 animate-pulse">
-        <div className="h-4 bg-zinc-800 rounded w-1/3 mb-4" />
-        <div className="h-3 bg-zinc-800/60 rounded w-2/3 mb-2" />
-        <div className="h-3 bg-zinc-800/60 rounded w-1/2" />
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 animate-pulse shadow-sm">
+        <div className="h-4 bg-gray-200 rounded w-1/3 mb-4" />
+        <div className="h-3 bg-gray-100 rounded w-2/3 mb-2" />
+        <div className="h-3 bg-gray-100 rounded w-1/2" />
       </div>
     );
   }
@@ -102,94 +101,94 @@ export default function SyncStatusCard() {
   const tl = status.trainingLoad;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+    <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-semibold text-white text-sm">Activity & Sync</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">Strava imports · Calendar conflicts</p>
+          <h2 className="font-semibold text-gray-900 text-sm">Activity & Sync</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Strava imports · Calendar conflicts</p>
         </div>
         <button
           onClick={handleSyncNow}
           disabled={syncing}
-          className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+          className="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
         >
           {syncing ? "Syncing…" : "Sync Now"}
         </button>
       </div>
 
       {error && (
-        <p className="text-xs text-yellow-400 bg-yellow-500/10 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{error}</p>
       )}
 
       {/* Last sync times */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-zinc-800/50 rounded-xl p-3">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-sm">🟠</span>
-            <p className="text-xs font-medium text-zinc-300">Strava</p>
+            <p className="text-xs font-medium text-gray-700">Strava</p>
           </div>
-          <p className="text-sm font-semibold text-white">{formatRelative(status.lastStravaSync)}</p>
-          <p className="text-xs text-zinc-600 mt-0.5">Last activity import</p>
+          <p className="text-sm font-semibold text-gray-900">{formatRelative(status.lastStravaSync)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Last activity import</p>
           {!status.stravaConnected && (
             <a
               href="/api/strava/connect"
-              className="text-xs text-orange-400 hover:text-orange-300 mt-1.5 block"
+              className="text-xs text-orange-600 hover:text-orange-700 mt-1.5 block"
             >
               Connect Strava →
             </a>
           )}
         </div>
-        <div className="bg-zinc-800/50 rounded-xl p-3">
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-3">
           <div className="flex items-center gap-1.5 mb-1">
             <span className="text-sm">📅</span>
-            <p className="text-xs font-medium text-zinc-300">Calendar</p>
+            <p className="text-xs font-medium text-gray-700">Calendar</p>
           </div>
-          <p className="text-sm font-semibold text-white">{formatRelative(status.lastCalendarCheck)}</p>
-          <p className="text-xs text-zinc-600 mt-0.5">Last conflict scan</p>
+          <p className="text-sm font-semibold text-gray-900">{formatRelative(status.lastCalendarCheck)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Last conflict scan</p>
         </div>
       </div>
 
-      {/* Training load — this week */}
+      {/* Training load */}
       {tl && (
         <div className="space-y-2">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Last 7 days</p>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Last 7 days</p>
           <div className="grid grid-cols-2 gap-2">
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-              <p className="text-sm font-bold text-blue-400 leading-none">{tl.weekBikeKm ?? 0} km</p>
-              <p className="text-xs text-blue-500/70 mt-1">🚴 Cycling</p>
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <p className="text-sm font-bold text-blue-600 leading-none">{tl.weekBikeKm ?? 0} km</p>
+              <p className="text-xs text-blue-400 mt-1">🚴 Cycling</p>
             </div>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3">
-              <p className="text-sm font-bold text-green-400 leading-none">{tl.weekRunKm ?? 0} km</p>
-              <p className="text-xs text-green-500/70 mt-1">🏃 Running</p>
+            <div className="bg-green-50 border border-green-100 rounded-xl p-3">
+              <p className="text-sm font-bold text-green-600 leading-none">{tl.weekRunKm ?? 0} km</p>
+              <p className="text-xs text-green-400 mt-1">🏃 Running</p>
             </div>
-            <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-3">
-              <p className="text-sm font-bold text-orange-400 leading-none">
+            <div className="bg-orange-50 border border-orange-100 rounded-xl p-3">
+              <p className="text-sm font-bold text-orange-600 leading-none">
                 {formatMins((tl.weekCrossfitMins ?? 0) * 60)}
               </p>
-              <p className="text-xs text-orange-500/70 mt-1">🏋️ CrossFit</p>
+              <p className="text-xs text-orange-400 mt-1">🏋️ CrossFit</p>
             </div>
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3">
-              <p className="text-sm font-bold text-purple-400 leading-none">
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-3">
+              <p className="text-sm font-bold text-purple-600 leading-none">
                 {formatMins((tl.weekStrengthMins ?? 0) * 60)}
               </p>
-              <p className="text-xs text-purple-500/70 mt-1">💪 Strength</p>
+              <p className="text-xs text-purple-400 mt-1">💪 Strength</p>
             </div>
           </div>
           {tl.sessionsScheduled > 0 && (
-            <div className="bg-zinc-800/50 rounded-xl px-3 py-2 flex items-center justify-between">
-              <p className="text-xs text-zinc-500">Sessions completed this week</p>
-              <p className="text-sm font-bold text-zinc-300">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 flex items-center justify-between">
+              <p className="text-xs text-gray-500">Sessions completed this week</p>
+              <p className="text-sm font-bold text-gray-800">
                 {tl.sessionsCompleted} / {tl.sessionsScheduled}
               </p>
             </div>
           )}
           {(tl.longestRideKm ?? 0) > 0 && (
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-gray-500">
               Longest ride:{" "}
-              <span className="font-medium text-zinc-300">{tl.longestRideKm} km</span>
+              <span className="font-medium text-gray-800">{tl.longestRideKm} km</span>
               {tl.longRideTargetHit && (
-                <span className="ml-1 text-green-400 font-medium">Long ride target hit!</span>
+                <span className="ml-1 text-green-600 font-medium">Long ride target hit!</span>
               )}
             </p>
           )}
@@ -199,13 +198,13 @@ export default function SyncStatusCard() {
       {/* Recent reschedules */}
       {status.recentReschedules.length > 0 && (
         <div className="space-y-1">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Auto-rescheduled</p>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Auto-rescheduled</p>
           {status.recentReschedules.map((r, i) => (
-            <div key={i} className="text-xs text-zinc-400 bg-yellow-500/5 border border-yellow-500/20 rounded-lg px-3 py-2">
-              <span className="font-medium text-zinc-300">{r.sessionType}</span>
+            <div key={i} className="text-xs text-gray-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <span className="font-medium text-gray-800">{r.sessionType}</span>
               {" "}moved from {r.originalDay} {r.originalTime} → {r.newDay} {r.newTime}
               {r.conflictWith && (
-                <span className="text-zinc-600"> (conflict: {r.conflictWith})</span>
+                <span className="text-gray-400"> (conflict: {r.conflictWith})</span>
               )}
             </div>
           ))}
@@ -215,7 +214,7 @@ export default function SyncStatusCard() {
       {/* Recent activities */}
       {status.recentActivities.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Recent Activities</p>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recent Activities</p>
           {status.recentActivities.slice(0, 3).map((a) => {
             const dateStr = new Date(a.start_date).toLocaleDateString("en-GB", {
               weekday: "short", day: "numeric", month: "short",
@@ -224,10 +223,10 @@ export default function SyncStatusCard() {
               <div key={a.id} className="flex items-center gap-2.5 text-xs">
                 <span className="flex-shrink-0">{activityIcon(a.type)}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="truncate text-zinc-300">{a.name}</p>
-                  <p className="text-zinc-600">{dateStr}</p>
+                  <p className="truncate text-gray-700">{a.name}</p>
+                  <p className="text-gray-400">{dateStr}</p>
                 </div>
-                <span className="text-zinc-500 flex-shrink-0">
+                <span className="text-gray-500 flex-shrink-0">
                   {a.distance > 0 ? `${a.distance} km` : formatMins(a.moving_time)}
                 </span>
               </div>

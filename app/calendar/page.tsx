@@ -302,45 +302,45 @@ export default function CalendarPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-950">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col bg-zinc-950" style={{ height: "100dvh" }}>
+    <div className="flex flex-col bg-gray-50" style={{ height: "100dvh" }}>
       {/* ── Sticky header ─────────────────────────────────────────────── */}
-      <header className="flex-shrink-0 bg-zinc-950 border-b border-zinc-800/60 z-30">
+      <header className="flex-shrink-0 bg-gray-50 border-b border-gray-200 z-30">
         {/* Title + week nav */}
         <div className="flex items-center justify-between px-4 py-3">
-          <span className="font-bold text-white text-lg">Calendar</span>
+          <span className="font-bold text-gray-900 text-lg">Calendar</span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setWeekOffset((o) => o - 1)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
               aria-label="Previous week"
             >
               ←
             </button>
             <div className="flex flex-col items-center min-w-[120px]">
-              <span className="text-sm font-medium text-white">
+              <span className="text-sm font-medium text-gray-900">
                 {weekLabel(monday)}
               </span>
               {weekOffset !== 0 ? (
                 <button
                   onClick={() => setWeekOffset(0)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 mt-0.5"
+                  className="text-xs text-indigo-600 hover:text-indigo-700 mt-0.5"
                 >
                   This week
                 </button>
               ) : (
-                <span className="text-xs text-zinc-600 mt-0.5">This week</span>
+                <span className="text-xs text-gray-400 mt-0.5">This week</span>
               )}
             </div>
             <button
               onClick={() => setWeekOffset((o) => o + 1)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
               aria-label="Next week"
             >
               →
@@ -349,7 +349,7 @@ export default function CalendarPage() {
         </div>
 
         {/* Day column headers */}
-        <div className="flex border-t border-zinc-800/40">
+        <div className="flex border-t border-gray-200">
           <div style={{ width: TIME_COL_W }} className="flex-shrink-0" />
           {days.map((day, i) => {
             const dayStr = isoDateStr(day);
@@ -358,19 +358,19 @@ export default function CalendarPage() {
               <div
                 key={dayStr}
                 className={`flex-1 flex flex-col items-center py-1.5 ${
-                  isToday ? "bg-indigo-950/20" : ""
+                  isToday ? "bg-indigo-50" : ""
                 }`}
               >
                 <span
                   className={`text-[10px] font-semibold uppercase tracking-wide ${
-                    isToday ? "text-indigo-400" : "text-zinc-500"
+                    isToday ? "text-indigo-600" : "text-gray-500"
                   }`}
                 >
                   {DAYS[i]}
                 </span>
                 <span
                   className={`text-sm font-bold leading-tight ${
-                    isToday ? "text-white" : "text-zinc-400"
+                    isToday ? "text-white" : "text-gray-500"
                   }`}
                 >
                   {day.getDate()}
@@ -390,7 +390,7 @@ export default function CalendarPage() {
         className="flex-1 overflow-y-auto overflow-x-hidden pb-16"
       >
         {error && (
-          <div className="mx-4 my-3 bg-red-500/10 border border-red-500/30 rounded-xl p-3">
+          <div className="mx-4 my-3 bg-red-50 border border-red-200 rounded-xl p-3">
             <p className="text-red-400 text-xs">{error}</p>
           </div>
         )}
@@ -412,7 +412,7 @@ export default function CalendarPage() {
                   className="absolute flex items-start justify-end pr-2"
                   style={{ top: i * HOUR_PX - 7, width: TIME_COL_W }}
                 >
-                  <span className="text-[10px] text-zinc-600 leading-none">
+                  <span className="text-[10px] text-gray-400 leading-none">
                     {hourLabel(h)}
                   </span>
                 </div>
@@ -431,15 +431,15 @@ export default function CalendarPage() {
                   key={dayStr}
                   className={`flex-1 relative border-l ${
                     isToday
-                      ? "border-l-indigo-800/40 bg-indigo-950/10"
-                      : "border-l-zinc-800/40"
+                      ? "border-l-indigo-200 bg-indigo-50/40"
+                      : "border-l-gray-200"
                   }`}
                 >
                   {/* Hour lines */}
                   {hours.slice(0, -1).map((_, hi) => (
                     <div
                       key={hi}
-                      className="absolute left-0 right-0 border-t border-zinc-800/40"
+                      className="absolute left-0 right-0 border-t border-gray-200"
                       style={{ top: hi * HOUR_PX }}
                     />
                   ))}
@@ -447,7 +447,7 @@ export default function CalendarPage() {
                   {hours.slice(0, -1).map((_, hi) => (
                     <div
                       key={`h${hi}`}
-                      className="absolute left-0 right-0 border-t border-zinc-800/20 border-dashed"
+                      className="absolute left-0 right-0 border-t border-gray-200/20 border-dashed"
                       style={{ top: hi * HOUR_PX + HOUR_PX / 2 }}
                     />
                   ))}
@@ -492,27 +492,27 @@ export default function CalendarPage() {
                       >
                         <div
                           className={`h-full rounded-md px-1 py-0.5 overflow-hidden transition-all ${
-                            isSelected ? "ring-1 ring-white/60" : ""
+                            isSelected ? "ring-2 ring-indigo-400" : ""
                           }`}
                           style={{
                             backgroundColor: color
-                              ? `${color}bb`
-                              : "rgba(63,63,70,0.45)",
-                            borderLeft: `2px solid ${color ?? "#52525b"}`,
+                              ? `${color}22`
+                              : "rgba(209,213,219,0.4)",
+                            borderLeft: `2px solid ${color ?? "#9ca3af"}`,
                           }}
                         >
                           {isTS ? (
                             <>
-                              <p className="text-[10px] font-semibold text-white leading-tight truncate">
+                              <p className="text-[10px] font-semibold text-gray-900 leading-tight truncate">
                                 {EMOJI_MAP[type!] ?? ""}{" "}
                                 {event.summary.replace(/^[^\w]+/, "").trim()}
                               </p>
-                              <p className="text-[9px] text-white/70 leading-tight">
+                              <p className="text-[9px] leading-tight" style={{ color: color ?? undefined }}>
                                 {formatTime(event.start)}
                               </p>
                             </>
                           ) : (
-                            <p className="text-[10px] text-zinc-300/60 leading-tight truncate">
+                            <p className="text-[10px] text-gray-500 leading-tight truncate">
                               {event.summary}
                             </p>
                           )}
@@ -534,7 +534,7 @@ export default function CalendarPage() {
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="absolute bottom-20 left-4 right-4 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-2xl"
+            className="absolute bottom-20 left-4 right-4 bg-white border border-gray-300 rounded-2xl p-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2.5 mb-3">
@@ -542,10 +542,10 @@ export default function CalendarPage() {
                 {EMOJI_MAP[parseType(selectedEvent.summary)] ?? "🏅"}
               </span>
               <div>
-                <p className="text-sm font-semibold text-white">
+                <p className="text-sm font-semibold text-gray-900">
                   {selectedEvent.summary.replace(/^[^\w]+/, "").trim()}
                 </p>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-gray-500">
                   {formatTime(selectedEvent.start)} –{" "}
                   {formatTime(selectedEvent.end)}
                 </p>
@@ -554,7 +554,7 @@ export default function CalendarPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => openEdit(selectedEvent)}
-                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-200 text-sm font-medium hover:bg-zinc-700 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-800 text-sm font-medium hover:bg-gray-200 transition-colors"
               >
                 Edit Time
               </button>
@@ -563,7 +563,7 @@ export default function CalendarPage() {
                   setConfirmDelete(selectedEvent);
                   setSelectedEvent(null);
                 }}
-                className="flex-1 py-2.5 rounded-xl bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 transition-colors"
+                className="flex-1 py-2.5 rounded-xl bg-red-50 text-red-600 text-sm font-medium hover:bg-red-100 transition-colors"
               >
                 Delete
               </button>
@@ -579,20 +579,20 @@ export default function CalendarPage() {
           onClick={() => setConfirmDelete(null)}
         >
           <div
-            className="absolute bottom-20 left-4 right-4 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-2xl"
+            className="absolute bottom-20 left-4 right-4 bg-white border border-gray-300 rounded-2xl p-4 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-sm font-semibold text-white mb-0.5">
               Delete this session?
             </p>
-            <p className="text-xs text-zinc-400 mb-4">
+            <p className="text-xs text-gray-500 mb-4">
               {confirmDelete.summary.replace(/^[^\w]+/, "").trim()} ·{" "}
               {formatTime(confirmDelete.start)}
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setConfirmDelete(null)}
-                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-400 text-sm font-medium"
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-gray-500 text-sm font-medium"
               >
                 Cancel
               </button>
