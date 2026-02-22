@@ -67,9 +67,27 @@ export async function createCalendarEvent(
     Bike: "🚴 Bike Ride",
   };
 
+  // For Strength sessions with a suggestion, build a structured description
+  let strengthDescription: string | null = null;
+  if (session.type === "Strength" && session.openGymSuggestion) {
+    const s = session.openGymSuggestion;
+    const exerciseLines = s.exercises
+      .map((e) => `  • ${e.name} — ${e.sets}`)
+      .join("\n");
+    strengthDescription = [
+      `💪 Strength Training — scheduled by TrainSync`,
+      ``,
+      `🎯 Focus: ${s.focus}`,
+      ``,
+      exerciseLines,
+      ``,
+      `ℹ️ ${s.note}`,
+    ].join("\n");
+  }
+
   const descriptions: Record<string, string> = {
     Crossfit: "CrossFit workout — scheduled by TrainSync",
-    Strength: "Strength training session — scheduled by TrainSync",
+    Strength: strengthDescription ?? "Strength training session — scheduled by TrainSync",
     Run: "Running session — scheduled by TrainSync",
     Bike: "Cycling session — scheduled by TrainSync",
   };

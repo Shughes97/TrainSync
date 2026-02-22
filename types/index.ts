@@ -9,6 +9,8 @@ export interface WorkoutSession {
   startISO: string; // full ISO string
   endISO: string; // full ISO string
   window: "morning" | "evening";
+  /** Strength-specific workout suggestion, attached at schedule time and written into the calendar event description */
+  openGymSuggestion?: OpenGymSuggestion;
 }
 
 export interface WorkoutProposal {
