@@ -8,6 +8,7 @@ import {
   getActivities,
 } from "@/lib/kv";
 import { isStravaConnected } from "@/lib/strava";
+import { getCurrentPhase } from "@/lib/training-config";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -24,11 +25,18 @@ export async function GET() {
       isStravaConnected(),
     ]);
 
+  // Always use the live phase target so the denominator never goes stale in KV
+  const phaseCtx = getCurrentPhase();
+  const sessionTarget = phaseCtx?.phase.weeklyPlan.length ?? 5;
+  const liveTrainingLoad = trainingLoad
+    ? { ...trainingLoad, sessionsScheduled: sessionTarget }
+    : null;
+
   // Return most recent 5 reschedule events and 10 activities
   return NextResponse.json({
     lastStravaSync: lastSync.strava,
     lastCalendarCheck: lastSync.calendar,
-    trainingLoad,
+    trainingLoad: liveTrainingLoad,
     recentReschedules: rescheduleLog.slice(-5).reverse(),
     stravaConnected,
     recentActivities: activities
