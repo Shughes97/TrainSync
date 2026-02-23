@@ -252,7 +252,7 @@ export default function CalendarPage() {
     setSelectedEvent(null);
   }
 
-  async function handleTimeConfirm(id: string, startTime: string, _day?: string) {
+  async function handleTimeConfirm(id: string, startTime: string) {
     if (!editingEvent) return;
     const [h, m] = startTime.split(":").map(Number);
     const endH = h + 1;
