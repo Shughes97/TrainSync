@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import WorkoutCard from "@/components/WorkoutCard";
 import WeekFocusCard from "@/components/WeekFocusCard";
 import SyncStatusCard from "@/components/SyncStatusCard";
-import TimePickerModal from "@/components/TimePickerModal";
+import TimePickerModal, { type WeekDay } from "@/components/TimePickerModal";
 import BottomNav from "@/components/BottomNav";
 import Image from "next/image";
 import { formatDay, getWeekStart } from "@/lib/scheduler";
@@ -128,6 +128,23 @@ export default function Dashboard() {
   // The target for the viewed week (phase-specific or default)
   const weeklyTarget = phaseContext?.phase.weeklyPlan ?? DEFAULT_TARGET;
 
+  // Build Mon–Sun day buttons for the date picker (past days disabled)
+  const weekDays = useMemo((): WeekDay[] => {
+    const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const todayISO = new Date().toISOString().split("T")[0];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(currentWeekISO + "T12:00:00");
+      d.setDate(d.getDate() + i);
+      const iso = d.toISOString().split("T")[0];
+      return {
+        iso,
+        label: DAY_LABELS[d.getDay()],
+        date: d.getDate(),
+        disabled: iso < todayISO,
+      };
+    });
+  }, [currentWeekISO]);
+
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
@@ -177,19 +194,20 @@ export default function Dashboard() {
     if (proposal) setEditingSession(proposal.session);
   };
 
-  const handleTimeConfirm = (id: string, startTime: string) => {
+  const handleTimeConfirm = (id: string, startTime: string, day?: string) => {
     const [h, m] = startTime.split(":").map(Number);
     const endHour = h + 1;
     const endTime = `${endHour.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
     setProposals((prev) =>
       prev.map((p) => {
         if (p.session.id !== id) return p;
-        const dayStr = p.session.day;
+        const dayStr = day ?? p.session.day;
         return {
           ...p,
           status: "accepted",
           session: {
             ...p.session,
+            day: dayStr,
             startTime,
             endTime,
             startISO: `${dayStr}T${startTime}:00`,
@@ -571,6 +589,8 @@ export default function Dashboard() {
           session={editingSession}
           onConfirm={handleTimeConfirm}
           onClose={() => setEditingSession(null)}
+          showDayPicker
+          weekDays={weekDays}
         />
       )}
 

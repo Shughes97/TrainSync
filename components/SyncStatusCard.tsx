@@ -49,7 +49,19 @@ export default function SyncStatusCard() {
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/sync/status");
-      if (res.ok) setStatus(await res.json());
+      if (!res.ok) return;
+      const data: SyncStatus = await res.json();
+      setStatus(data);
+
+      // Silently re-sync in the background if Strava data is stale (> 6 hours)
+      const isStale =
+        !data.lastStravaSync ||
+        Date.now() - new Date(data.lastStravaSync).getTime() > 6 * 60 * 60 * 1000;
+      if (isStale && data.stravaConnected) {
+        fetch("/api/cron/strava-sync", { method: "POST" })
+          .then((r) => { if (r.ok) fetchStatus(); })
+          .catch(() => {});
+      }
     } catch {
       // silently ignore
     }

@@ -121,6 +121,11 @@ function findFreeBlocks(
     if (!overlaps) {
       const startTime = fromMinutes(slotStart);
       const endTime = fromMinutes(slotEnd);
+
+      // Skip slots that start within the next 60 minutes (not enough notice)
+      const slotAbsoluteStart = new Date(`${dayStr}T${startTime}:00`).getTime();
+      if (slotAbsoluteStart <= Date.now() + 60 * 60 * 1000) continue;
+
       blocks.push({
         startTime,
         endTime,

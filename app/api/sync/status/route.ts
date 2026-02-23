@@ -31,6 +31,8 @@ export async function GET() {
     trainingLoad,
     recentReschedules: rescheduleLog.slice(-5).reverse(),
     stravaConnected,
-    recentActivities: activities.slice(0, 10),
+    recentActivities: activities
+      .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
+      .slice(0, 10),
   });
 }

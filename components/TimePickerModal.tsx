@@ -4,10 +4,21 @@ import { useState } from "react";
 import type { WorkoutSession } from "@/types";
 import { formatDay } from "@/lib/scheduler";
 
+export interface WeekDay {
+  iso: string;   // YYYY-MM-DD
+  label: string; // "Mon", "Tue", …
+  date: number;  // day-of-month
+  disabled: boolean;
+}
+
 interface TimePickerModalProps {
   session: WorkoutSession;
-  onConfirm: (id: string, startTime: string) => void;
+  onConfirm: (id: string, startTime: string, day?: string) => void;
   onClose: () => void;
+  /** When true, shows a day-of-week selector above the time slots */
+  showDayPicker?: boolean;
+  /** Days for the current week, built by the parent */
+  weekDays?: WeekDay[];
 }
 
 const MORNING_SLOTS_WEEKDAY = ["06:30", "07:00"];
@@ -23,15 +34,22 @@ function formatSlot(time: string): string {
   return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
+function isWeekendDay(iso: string): boolean {
+  const dow = new Date(iso + "T12:00:00").getDay();
+  return dow === 0 || dow === 6;
+}
+
 export default function TimePickerModal({
   session,
   onConfirm,
   onClose,
+  showDayPicker = false,
+  weekDays = [],
 }: TimePickerModalProps) {
-  const [selected, setSelected] = useState(session.startTime);
+  const [selectedDay, setSelectedDay] = useState(session.day);
+  const [selectedTime, setSelectedTime] = useState(session.startTime);
 
-  const dow = new Date(session.day + "T12:00:00").getDay();
-  const isWeekend = dow === 0 || dow === 6;
+  const isWeekend = isWeekendDay(selectedDay);
   const morningSlots = isWeekend ? MORNING_SLOTS_WEEKEND : MORNING_SLOTS_WEEKDAY;
   const morningLabel = isWeekend ? "Morning (8am–12pm)" : "Morning (6:30–8am)";
 
@@ -39,6 +57,17 @@ export default function TimePickerModal({
     { label: morningLabel, slots: morningSlots },
     { label: "Evening (5–8pm)", slots: EVENING_SLOTS },
   ];
+
+  function handleDayChange(iso: string) {
+    setSelectedDay(iso);
+    // Reset time if the current selection isn't valid for the new day's slots
+    const newIsWeekend = isWeekendDay(iso);
+    const newMorning = newIsWeekend ? MORNING_SLOTS_WEEKEND : MORNING_SLOTS_WEEKDAY;
+    const allValid = [...newMorning, ...EVENING_SLOTS];
+    if (!allValid.includes(selectedTime)) {
+      setSelectedTime(newMorning[0]);
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -50,8 +79,10 @@ export default function TimePickerModal({
       <div className="relative z-10 w-full max-w-sm bg-white border border-gray-200 rounded-t-3xl sm:rounded-3xl p-6 shadow-xl">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Change Time</h3>
-            <p className="text-sm text-gray-500">{formatDay(session.day)}</p>
+            <h3 className="text-base font-semibold text-gray-900">
+              Change {showDayPicker ? "Date & Time" : "Time"}
+            </h3>
+            <p className="text-sm text-gray-500">{formatDay(selectedDay)}</p>
           </div>
           <button
             onClick={onClose}
@@ -61,6 +92,38 @@ export default function TimePickerModal({
           </button>
         </div>
 
+        {/* Day picker */}
+        {showDayPicker && weekDays.length > 0 && (
+          <div className="mb-5">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              Day
+            </p>
+            <div className="flex gap-1.5 overflow-x-auto pb-1">
+              {weekDays.map((day) => {
+                const isSelected = day.iso === selectedDay;
+                return (
+                  <button
+                    key={day.iso}
+                    onClick={() => !day.disabled && handleDayChange(day.iso)}
+                    disabled={day.disabled}
+                    className={`flex-shrink-0 flex flex-col items-center px-2.5 py-2 rounded-xl text-xs font-medium transition-all border ${
+                      isSelected
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : day.disabled
+                        ? "bg-gray-50 text-gray-300 border-gray-100 cursor-not-allowed"
+                        : "bg-gray-100 text-gray-700 border-transparent hover:bg-gray-200"
+                    }`}
+                  >
+                    <span className="text-[10px] uppercase tracking-wide">{day.label}</span>
+                    <span className="text-sm font-bold leading-tight mt-0.5">{day.date}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Time slots */}
         {allSlots.map(({ label, slots }) => (
           <div key={label} className="mb-5">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
@@ -70,9 +133,9 @@ export default function TimePickerModal({
               {slots.map((slot) => (
                 <button
                   key={slot}
-                  onClick={() => setSelected(slot)}
+                  onClick={() => setSelectedTime(slot)}
                   className={`py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    selected === slot
+                    selectedTime === slot
                       ? "bg-indigo-600 text-white"
                       : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                   }`}
@@ -85,10 +148,10 @@ export default function TimePickerModal({
         ))}
 
         <button
-          onClick={() => onConfirm(session.id, selected)}
+          onClick={() => onConfirm(session.id, selectedTime, showDayPicker ? selectedDay : undefined)}
           className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors"
         >
-          Confirm Time
+          Confirm
         </button>
       </div>
     </div>
