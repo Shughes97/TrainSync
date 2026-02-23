@@ -83,7 +83,7 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
     weekCrossfitMins: Math.round(weekCrossfitSecs / 60),
     weekStrengthMins: Math.round(weekStrengthSecs / 60),
     sessionsCompleted: completedSessions,
-    sessionsScheduled: weekSchedule?.sessions.length ?? 0,
+    sessionsScheduled: phaseCtx?.phase.weeklyPlan.length ?? 5,
     longRideTargetHit: longRideTargetKm > 0 && longestRideKm >= longRideTargetKm * 0.9,
     longestRideKm: Math.round(longestRideKm * 10) / 10,
   };

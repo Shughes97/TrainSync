@@ -591,6 +591,7 @@ export default function Dashboard() {
           onClose={() => setEditingSession(null)}
           showDayPicker
           weekDays={weekDays}
+          calEventsByDay={calEventsByDay}
         />
       )}
 

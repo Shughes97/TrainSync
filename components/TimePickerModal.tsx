@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import type { WorkoutSession } from "@/types";
+import { useMemo, useState } from "react";
+import type { CalEvent, WorkoutSession } from "@/types";
 import { formatDay } from "@/lib/scheduler";
+import DayPreview from "@/components/DayPreview";
 
 export interface WeekDay {
   iso: string;   // YYYY-MM-DD
@@ -19,6 +20,8 @@ interface TimePickerModalProps {
   showDayPicker?: boolean;
   /** Days for the current week, built by the parent */
   weekDays?: WeekDay[];
+  /** Full-week calendar events keyed by YYYY-MM-DD — enables the live day preview */
+  calEventsByDay?: Record<string, CalEvent[]>;
 }
 
 const MORNING_SLOTS_WEEKDAY = ["06:30", "07:00"];
@@ -45,9 +48,25 @@ export default function TimePickerModal({
   onClose,
   showDayPicker = false,
   weekDays = [],
+  calEventsByDay,
 }: TimePickerModalProps) {
   const [selectedDay, setSelectedDay] = useState(session.day);
   const [selectedTime, setSelectedTime] = useState(session.startTime);
+
+  const previewSession = useMemo((): WorkoutSession => {
+    const [h, m] = selectedTime.split(":").map(Number);
+    const endHour = h + 1;
+    const endTime = `${endHour.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+    return {
+      ...session,
+      day: selectedDay,
+      startTime: selectedTime,
+      endTime,
+      startISO: `${selectedDay}T${selectedTime}:00`,
+      endISO: `${selectedDay}T${endTime}:00`,
+      window: h < 12 ? "morning" : "evening",
+    };
+  }, [session, selectedDay, selectedTime]);
 
   const isWeekend = isWeekendDay(selectedDay);
   const morningSlots = isWeekend ? MORNING_SLOTS_WEEKEND : MORNING_SLOTS_WEEKDAY;
@@ -119,6 +138,21 @@ export default function TimePickerModal({
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Live day preview */}
+        {calEventsByDay && (
+          <div className="mb-5">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              Day Preview
+            </p>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 pt-1 pb-2">
+              <DayPreview
+                session={previewSession}
+                events={calEventsByDay[selectedDay] ?? []}
+              />
             </div>
           </div>
         )}
