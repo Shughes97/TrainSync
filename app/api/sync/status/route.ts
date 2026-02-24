@@ -29,12 +29,17 @@ export async function GET() {
   const phaseCtx = getCurrentPhase();
   const sessionTarget = phaseCtx?.phase.weeklyPlan.length ?? 5;
 
-  // Count recognised workout types in the rolling 7-day window
+  // Count recognised workout types from Monday of the current week (Mon–Sun)
   const GYM_TYPES = new Set(["WeightTraining", "Crossfit"]);
   const RECOGNISED = new Set(["WeightTraining", "Crossfit", "Run", "VirtualRun", "Ride", "VirtualRide"]);
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  const dow = now.getDay(); // 0=Sun, 1=Mon...
+  const daysFromMonday = dow === 0 ? 6 : dow - 1;
+  const weekMonday = new Date(now);
+  weekMonday.setDate(now.getDate() - daysFromMonday);
+  weekMonday.setHours(0, 0, 0, 0);
   const recentWorkouts = activities.filter((a) => {
-    return new Date(a.start_date) >= sevenDaysAgo && RECOGNISED.has(a.type);
+    return new Date(a.start_date) >= weekMonday && RECOGNISED.has(a.type);
   });
 
   // Deduplicate: one session per day per category (gym / run / bike)

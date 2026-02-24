@@ -42,7 +42,7 @@ const workoutConfig: Record<
 > = {
   Crossfit: { icon: "🏋️", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
   Strength: { icon: "💪", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
-  Run:      { icon: "🏃", color: "text-green-600",  bg: "bg-green-50",  border: "border-green-200"  },
+  Run:      { icon: "🏃", color: "text-teal-600",   bg: "bg-teal-50",   border: "border-teal-200"   },
   Bike:     { icon: "🚴", color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200"   },
 };
 

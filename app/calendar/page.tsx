@@ -34,7 +34,7 @@ const TYPE_MAP: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
   Crossfit: "#ea580c",
   Strength: "#9333ea",
-  Run: "#16a34a",
+  Run: "#0d9488",
   Bike: "#2563eb",
 };
 
@@ -84,7 +84,12 @@ function weekLabel(monday: Date): string {
 }
 
 function isoDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
+  // Use local date parts (not .toISOString which is UTC) so the Monday
+  // boundary is always correct regardless of the user's timezone.
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function topPct(iso: string): number {
