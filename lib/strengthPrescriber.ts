@@ -52,16 +52,7 @@ function buildPrompt(
       }).join("\n")
     : "No recent CrossFit sessions on record yet.";
 
-  // CrossFit days in the week (excluding the strength day itself)
-  const crossfitDays = weekDates
-    .filter((d) => d !== date)
-    .filter((d) => {
-      // We don't know for certain what's on each day here,
-      // but we pass all week dates and let Claude reason about adjacency
-      return false; // placeholder — we'll pass weekDates separately
-    });
-
-  // Simpler: just note which days of the week are in scope
+  // Days of the week in scope — Claude uses this to reason about adjacency
   const weekDayNames = weekDates.map((d) => isoDateToDayName(d)).join(", ");
 
   // Last strength session
