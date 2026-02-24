@@ -156,6 +156,7 @@ export default function CalendarPage() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [trainSyncEvents, setTrainSyncEvents] = useState<CalEvent[]>([]);
   const [allEventsByDay, setAllEventsByDay] = useState<Record<string, CalEvent[]>>({});
+  const [completedEventIds, setCompletedEventIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<CalEvent | null>(null);
@@ -182,6 +183,7 @@ export default function CalendarPage() {
       const data = await res.json();
       setTrainSyncEvents(data.events ?? []);
       setAllEventsByDay(data.allEventsByDay ?? {});
+      setCompletedEventIds(new Set(data.completedEventIds ?? []));
     } catch {
       setError("Could not load calendar.");
     } finally {
@@ -466,6 +468,7 @@ export default function CalendarPage() {
                   {/* Events */}
                   {laid.map(({ event, leftPct, widthPct }) => {
                     const isTS = trainSyncIds.has(event.id);
+                    const isDone = isTS && completedEventIds.has(event.id);
                     const type = isTS ? parseType(event.summary) : null;
                     const color = type ? TYPE_COLORS[type] : null;
                     const top = topPct(event.start);
@@ -491,23 +494,28 @@ export default function CalendarPage() {
                         }}
                       >
                         <div
-                          className={`h-full rounded-md px-1 py-0.5 overflow-hidden transition-all ${
+                          className={`h-full rounded-md px-1 py-0.5 overflow-hidden transition-all relative ${
                             isSelected ? "ring-2 ring-indigo-400" : ""
                           }`}
                           style={{
-                            backgroundColor: color
+                            backgroundColor: isDone
+                              ? "rgba(34,197,94,0.15)"
+                              : color
                               ? `${color}22`
                               : "rgba(209,213,219,0.4)",
-                            borderLeft: `2px solid ${color ?? "#9ca3af"}`,
+                            borderLeft: `2px solid ${isDone ? "#16a34a" : (color ?? "#9ca3af")}`,
                           }}
                         >
+                          {isDone && (
+                            <span className="absolute top-0.5 right-0.5 text-green-600 text-[10px] leading-none">✓</span>
+                          )}
                           {isTS ? (
                             <>
                               <p className="text-[10px] font-semibold text-gray-900 leading-tight truncate">
                                 {EMOJI_MAP[type!] ?? ""}{" "}
                                 {event.summary.replace(/^[^\w]+/, "").trim()}
                               </p>
-                              <p className="text-[9px] leading-tight" style={{ color: color ?? undefined }}>
+                              <p className="text-[9px] leading-tight" style={{ color: isDone ? "#16a34a" : (color ?? undefined) }}>
                                 {formatTime(event.start)}
                               </p>
                             </>

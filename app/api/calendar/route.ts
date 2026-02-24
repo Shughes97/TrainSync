@@ -90,12 +90,17 @@ export async function GET(req: NextRequest) {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekStart.getDate() + 7);
 
-    const [events, allEventsByDay] = await Promise.all([
+    const [events, allEventsByDay, weekSchedule] = await Promise.all([
       fetchWeekEvents(session.accessToken, weekStart, weekEnd),
       fetchAllEventsByDay(session.accessToken, weekStart, weekEnd),
+      kv.get<StoredWeekSchedule>("schedule:current_week"),
     ]);
 
-    return NextResponse.json({ events, allEventsByDay });
+    const completedEventIds = (weekSchedule?.sessions ?? [])
+      .filter((s) => s.completed && s.calendarEventId)
+      .map((s) => s.calendarEventId);
+
+    return NextResponse.json({ events, allEventsByDay, completedEventIds });
   } catch (error) {
     console.error("Calendar GET error:", error);
     return NextResponse.json(

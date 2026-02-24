@@ -11,6 +11,11 @@ import { kv } from "@vercel/kv";
 import { fetchAndStoreActivities, stravaTypeToWorkout } from "./strava";
 import { getWeekSchedule, type TrainingLoad } from "./kv";
 import { getCurrentPhase } from "./training-config";
+import { updateCalendarEvent } from "./google-calendar";
+
+// WeightTraining and Crossfit on Strava both map to "Strength" via stravaTypeToWorkout,
+// but scheduled sessions may be typed as "Crossfit". Treat both as interchangeable.
+const GYM_TYPES = new Set(["Strength", "Crossfit"]);
 
 export interface StravaSyncResult {
   activitiesCount: number;
@@ -27,19 +32,48 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
   let completedSessions = 0;
 
   if (weekSchedule) {
-    const updatedSessions = weekSchedule.sessions.map((session) => {
+    const updatedSessions = [];
+
+    for (const session of weekSchedule.sessions) {
       const matchingActivity = activities.find((activity) => {
         const activityDay = activity.start_date.substring(0, 10);
         const workoutType = stravaTypeToWorkout(activity.type);
-        return activityDay === session.day && workoutType === session.type;
+        if (activityDay !== session.day || !workoutType) return false;
+        // Exact type match, or both are gym sessions (Strength ↔ Crossfit)
+        return workoutType === session.type ||
+          (GYM_TYPES.has(workoutType) && GYM_TYPES.has(session.type));
       });
 
       if (matchingActivity) {
         completedSessions++;
-        return { ...session, completed: true };
+
+        // If actual activity time differs from scheduled by >30 min, move the calendar event
+        if (session.calendarEventId) {
+          const actualStart = new Date(matchingActivity.start_date);
+          const scheduledStart = new Date(session.startISO);
+          const timeDiffMs = Math.abs(actualStart.getTime() - scheduledStart.getTime());
+
+          if (timeDiffMs > 30 * 60 * 1000) {
+            const durationMs = Math.min(matchingActivity.moving_time * 1000, 2 * 60 * 60 * 1000);
+            const actualEnd = new Date(actualStart.getTime() + durationMs);
+            try {
+              await updateCalendarEvent(
+                accessToken,
+                session.calendarEventId,
+                actualStart.toISOString(),
+                actualEnd.toISOString()
+              );
+            } catch (e) {
+              console.error("Failed to move calendar event to actual time:", e);
+            }
+          }
+        }
+
+        updatedSessions.push({ ...session, completed: true });
+      } else {
+        updatedSessions.push(session);
       }
-      return session;
-    });
+    }
 
     await kv.set("schedule:current_week", {
       ...weekSchedule,
