@@ -42,19 +42,25 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { image, date } = body as { image?: string; date?: string };
+  const { images, date } = body as { images?: string[]; date?: string };
 
-  if (!image) {
-    return NextResponse.json({ error: "Missing image" }, { status: 400 });
+  if (!images || images.length === 0) {
+    return NextResponse.json({ error: "Missing images" }, { status: 400 });
   }
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  // Strip data URL prefix if present (e.g. "data:image/jpeg;base64,...")
-  const base64 = image.replace(/^data:[^;]+;base64,/, "");
-  // Detect media type from data URL or default to jpeg
-  const mediaTypeMatch = image.match(/^data:([^;]+);base64,/);
-  const mediaType = (mediaTypeMatch?.[1] as "image/jpeg" | "image/png" | "image/gif" | "image/webp") ?? "image/jpeg";
+  // Build one content block per image
+  type ImageBlock = {
+    type: "image";
+    source: { type: "base64"; media_type: "image/jpeg" | "image/png" | "image/gif" | "image/webp"; data: string };
+  };
+  const imageBlocks: ImageBlock[] = images.map((img) => {
+    const base64 = img.replace(/^data:[^;]+;base64,/, "");
+    const match = img.match(/^data:([^;]+);base64,/);
+    const mediaType = (match?.[1] as ImageBlock["source"]["media_type"]) ?? "image/jpeg";
+    return { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } };
+  });
 
   try {
     const message = await anthropic.messages.create({
@@ -65,11 +71,11 @@ export async function POST(req: NextRequest) {
         {
           role: "user",
           content: [
+            ...imageBlocks,
             {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64 },
+              type: "text",
+              text: `Today's date is ${todayISO()}. These ${images.length} screenshot${images.length > 1 ? "s are" : " is"} all from the same CrossFit session. Combine them into a single JSON object describing the full session.`,
             },
-            { type: "text", text: `Today's date is ${todayISO()}. Parse this Wodify screenshot.` },
           ],
         },
       ],
