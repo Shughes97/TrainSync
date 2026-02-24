@@ -33,7 +33,7 @@ const TYPE_MAP: Record<string, string> = {
 
 const TYPE_COLORS: Record<string, string> = {
   Crossfit: "#ea580c",
-  Strength: "#9333ea",
+  Strength: "#d97706",
   Run: "#e11d48",
   Bike: "#2563eb",
 };

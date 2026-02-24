@@ -32,9 +32,9 @@ const workoutConfig: Record<
   },
   Run: {
     icon: "🏃",
-    color: "text-green-600",
-    bg: "bg-green-50",
-    border: "border-green-200",
+    color: "text-rose-600",
+    bg: "bg-rose-50",
+    border: "border-rose-200",
   },
   Bike: {
     icon: "🚴",
