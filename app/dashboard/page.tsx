@@ -14,7 +14,6 @@ import { formatDay, getWeekStart } from "@/lib/scheduler";
 import {
   getCurrentPhase,
   daysUntilGoal,
-  getOpenGymSuggestion,
 } from "@/lib/training-config";
 import type {
   CalEventsByDay,
@@ -572,29 +571,17 @@ export default function Dashboard() {
               )}
             </div>
             <div className="space-y-3">
-              {(() => {
-                let strengthCount = 0;
-                return proposals.map((proposal) => {
-                  const suggestion =
-                    proposal.session.type === "Strength" && phaseContext
-                      ? getOpenGymSuggestion(
-                          phaseContext.phase.focus,
-                          strengthCount++
-                        )
-                      : null;
-                  return (
-                    <WorkoutCard
-                      key={proposal.session.id}
-                      proposal={proposal}
-                      dayEvents={calEventsByDay[proposal.session.day] ?? []}
-                      openGymSuggestion={suggestion}
-                      onAccept={handleAccept}
-                      onSkip={handleSkip}
-                      onChangeTime={handleChangeTime}
-                    />
-                  );
-                });
-              })()}
+              {proposals.map((proposal) => (
+                <WorkoutCard
+                  key={proposal.session.id}
+                  proposal={proposal}
+                  dayEvents={calEventsByDay[proposal.session.day] ?? []}
+                  openGymSuggestion={proposal.session.openGymSuggestion ?? null}
+                  onAccept={handleAccept}
+                  onSkip={handleSkip}
+                  onChangeTime={handleChangeTime}
+                />
+              ))}
             </div>
           </section>
         ) : scheduledEvents.length >= weeklyTarget.length ? (
