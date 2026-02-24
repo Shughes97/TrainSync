@@ -35,9 +35,9 @@ interface WeekBar {
 
 const COLORS = {
   bikeH: "#3b82f6",      // blue-500
-  runH: "#22c55e",       // green-500
+  runH: "#e11d48",       // rose-600
   crossfitH: "#f97316",  // orange-500
-  strengthH: "#a855f7",  // purple-500
+  strengthH: "#d97706",  // amber-600
 };
 
 const LABELS = {

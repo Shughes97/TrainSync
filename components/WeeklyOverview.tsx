@@ -12,7 +12,7 @@ const TARGET = 5;
 const typeColors: Record<WorkoutType, string> = {
   Crossfit: "bg-orange-500",
   Strength: "bg-amber-500",
-  Run: "bg-green-500",
+  Run: "bg-rose-500",
   Bike: "bg-blue-500",
 };
 
