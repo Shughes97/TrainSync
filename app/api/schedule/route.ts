@@ -24,6 +24,21 @@ function parseWorkoutType(summary: string): WorkoutType | null {
   return null;
 }
 
+function parseEventCategory(summary: string): string | null {
+  if (summary.includes("CrossFit")) return "gym";
+  if (summary.includes("Strength")) return "gym";
+  if (summary.includes("Run")) return "run";
+  if (summary.includes("Bike")) return "bike";
+  return null;
+}
+
+function stravaActivityCategory(stravaType: string): string | null {
+  if (stravaType === "WeightTraining" || stravaType === "Crossfit") return "gym";
+  if (stravaType === "Run" || stravaType === "VirtualRun") return "run";
+  if (stravaType === "Ride" || stravaType === "VirtualRide") return "bike";
+  return null;
+}
+
 /**
  * Build an OpenGymSuggestion enriched with context from recent Strava activity data.
  * The base suggestion comes from the phase plan; the note is personalised using
@@ -100,6 +115,20 @@ export async function GET(req: NextRequest) {
           new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
       );
 
+    // Determine which scheduled events are already completed via Strava
+    const completedEventIds: string[] = [];
+    for (const event of existingEvents) {
+      const dayStr = event.start.substring(0, 10);
+      const eventCat = parseEventCategory(event.summary);
+      if (!eventCat) continue;
+      const matched = stravaActivities.some(
+        (a) =>
+          a.start_date.substring(0, 10) === dayStr &&
+          stravaActivityCategory(a.type) === eventCat
+      );
+      if (matched) completedEventIds.push(event.id);
+    }
+
     // Determine which session types are already scheduled this week
     const scheduledTypes = existingEvents
       .map((e) => parseWorkoutType(e.summary))
@@ -120,6 +149,7 @@ export async function GET(req: NextRequest) {
         weekStart: weekStart.toISOString(),
         calendarEventsByDay,
         scheduledEvents: existingEvents,
+        completedEventIds,
       });
     }
 
@@ -159,6 +189,7 @@ export async function GET(req: NextRequest) {
       weekStart: weekStart.toISOString(),
       calendarEventsByDay,
       scheduledEvents: existingEvents,
+      completedEventIds,
     });
   } catch (error) {
     console.error("Schedule API error:", error);

@@ -106,6 +106,7 @@ export default function Dashboard() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [proposals, setProposals] = useState<WorkoutProposal[]>([]);
   const [scheduledEvents, setScheduledEvents] = useState<ScheduledEvent[]>([]);
+  const [completedEventIds, setCompletedEventIds] = useState<Set<string>>(new Set());
   const [warnings, setWarnings] = useState<string[]>([]);
   const [calEventsByDay, setCalEventsByDay] = useState<CalEventsByDay>({});
   const [pageState, setPageState] = useState<PageState>("loading");
@@ -154,6 +155,7 @@ export default function Dashboard() {
     setScheduleError(null);
     setProposals([]);
     setScheduledEvents([]);
+    setCompletedEventIds(new Set());
     setJustScheduledCount(0);
     try {
       const res = await fetch(`/api/schedule?weekStart=${weekISO}`);
@@ -163,6 +165,7 @@ export default function Dashboard() {
       setWarnings(data.warnings ?? []);
       setCalEventsByDay(data.calendarEventsByDay ?? {});
       setScheduledEvents(data.scheduledEvents ?? []);
+      setCompletedEventIds(new Set(data.completedEventIds ?? []));
       setPageState("ready");
     } catch (err) {
       console.error(err);
@@ -460,47 +463,82 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* ── Scheduled Sessions ───────────────────────────────────────────── */}
-        {scheduledEvents.length > 0 && (
+        {/* ── Completed Sessions ───────────────────────────────────────────── */}
+        {scheduledEvents.filter((e) => completedEventIds.has(e.id)).length > 0 && (
           <section>
-            <h2 className="text-base font-semibold text-gray-900 mb-3">Scheduled</h2>
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Completed</h2>
             <div className="space-y-2">
-              {scheduledEvents.map((event) => {
-                const type = parseWorkoutType(event.summary) ?? "Crossfit";
-                const cfg = workoutConfig[type];
-                const dayStr = event.start.substring(0, 10);
-                const isUnscheduling = unschedulingId === event.id;
-                return (
-                  <div
-                    key={event.id}
-                    className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${cfg.bg} ${cfg.border}`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
+              {scheduledEvents
+                .filter((e) => completedEventIds.has(e.id))
+                .map((event) => {
+                  const type = parseWorkoutType(event.summary) ?? "Crossfit";
+                  const cfg = workoutConfig[type];
+                  const dayStr = event.start.substring(0, 10);
+                  return (
+                    <div
+                      key={event.id}
+                      className="rounded-2xl border p-4 flex items-center gap-3 bg-green-50 border-green-200"
+                    >
                       <span className="text-xl flex-shrink-0">{cfg.icon}</span>
-                      <div className="min-w-0">
-                        <p className={`text-sm font-semibold ${cfg.color} truncate`}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-green-700 truncate">
                           {type}
                         </p>
                         <p className="text-xs text-gray-500">
                           {formatDay(dayStr)} · {formatEventTime(event.start)}
                         </p>
                       </div>
+                      <span className="text-green-600 text-lg flex-shrink-0">✓</span>
                     </div>
-                    <button
-                      onClick={() => setConfirmUnschedule(event)}
-                      disabled={isUnscheduling}
-                      className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
-                    >
-                      {isUnscheduling ? "…" : "Unschedule"}
-                    </button>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           </section>
         )}
 
-        {/* ── To Schedule ──────────────────────────────────────────────────── */}
+        {/* ── Scheduled Sessions ───────────────────────────────────────────── */}
+        {scheduledEvents.filter((e) => !completedEventIds.has(e.id)).length > 0 && (
+          <section>
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Scheduled</h2>
+            <div className="space-y-2">
+              {scheduledEvents
+                .filter((e) => !completedEventIds.has(e.id))
+                .map((event) => {
+                  const type = parseWorkoutType(event.summary) ?? "Crossfit";
+                  const cfg = workoutConfig[type];
+                  const dayStr = event.start.substring(0, 10);
+                  const isUnscheduling = unschedulingId === event.id;
+                  return (
+                    <div
+                      key={event.id}
+                      className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${cfg.bg} ${cfg.border}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-xl flex-shrink-0">{cfg.icon}</span>
+                        <div className="min-w-0">
+                          <p className={`text-sm font-semibold ${cfg.color} truncate`}>
+                            {type}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatDay(dayStr)} · {formatEventTime(event.start)}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setConfirmUnschedule(event)}
+                        disabled={isUnscheduling}
+                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
+                      >
+                        {isUnscheduling ? "…" : "Unschedule"}
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
+          </section>
+        )}
+
+        {/* ── Pending (To Schedule) ────────────────────────────────────────── */}
         {pageState === "loading" ? (
           <div className="flex items-center justify-center py-10">
             <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
@@ -508,7 +546,7 @@ export default function Dashboard() {
         ) : proposals.length > 0 ? (
           <section>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold text-gray-900">To Schedule</h2>
+              <h2 className="text-base font-semibold text-gray-900">Pending</h2>
               {pendingCount > 0 && (
                 <button
                   onClick={handleAcceptAll}
