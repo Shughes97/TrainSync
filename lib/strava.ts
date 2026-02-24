@@ -82,6 +82,8 @@ export async function fetchAndStoreActivities(accessToken: string): Promise<Stor
     start_date: string;
     suffer_score: number | null;
     average_heartrate: number | null;
+    max_heartrate: number | null;
+    calories: number | null;
   }> = await res.json();
 
   const activities: StoredActivity[] = raw.map((a) => ({
@@ -93,6 +95,8 @@ export async function fetchAndStoreActivities(accessToken: string): Promise<Stor
     start_date: a.start_date,
     suffer_score: a.suffer_score ?? null,
     average_heartrate: a.average_heartrate ?? null,
+    max_heartrate: a.max_heartrate ?? null,
+    calories: a.calories ?? null,
   }));
 
   await kv.set("strava:activities", activities);

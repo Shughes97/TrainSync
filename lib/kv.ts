@@ -7,6 +7,7 @@
  */
 
 import { kv } from "@vercel/kv";
+import type { WodifyParsed, EnrichedSession } from "@/types";
 
 export { kv };
 
@@ -21,6 +22,8 @@ export interface StoredActivity {
   start_date: string; // ISO datetime
   suffer_score: number | null;
   average_heartrate: number | null;
+  max_heartrate: number | null;
+  calories: number | null;
 }
 
 export interface StoredSession {
@@ -164,6 +167,32 @@ export async function appendRescheduleLog(event: RescheduleEvent): Promise<void>
     const trimmed = log.filter((e) => new Date(e.timestamp).getTime() > cutoff);
     trimmed.push(event);
     await kv.set("schedule:reschedule_log", trimmed);
+  } catch {
+    // silently ignore
+  }
+}
+
+// ─── Wodify + Enriched Session helpers ───────────────────────────────────────
+
+export async function getWodifyData(date: string): Promise<WodifyParsed | null> {
+  return safeGet<WodifyParsed>(`wodify:${date}`);
+}
+
+export async function setWodifyData(date: string, data: WodifyParsed): Promise<void> {
+  try {
+    await kv.set(`wodify:${date}`, data);
+  } catch {
+    // silently ignore
+  }
+}
+
+export async function getEnrichedSession(date: string): Promise<EnrichedSession | null> {
+  return safeGet<EnrichedSession>(`session:${date}`);
+}
+
+export async function setEnrichedSession(date: string, session: EnrichedSession): Promise<void> {
+  try {
+    await kv.set(`session:${date}`, session);
   } catch {
     // silently ignore
   }

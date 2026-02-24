@@ -30,8 +30,8 @@ export async function GET() {
   const sessionTarget = phaseCtx?.phase.weeklyPlan.length ?? 5;
 
   // Count recognised workout types from Monday of the current week (Mon–Sun)
-  const GYM_TYPES = new Set(["WeightTraining", "Crossfit"]);
-  const RECOGNISED = new Set(["WeightTraining", "Crossfit", "Run", "VirtualRun", "Ride", "VirtualRide"]);
+  const GYM_TYPES = new Set(["WeightTraining", "Crossfit", "Workout"]);
+  const RECOGNISED = new Set(["WeightTraining", "Crossfit", "Workout", "Run", "VirtualRun", "Ride", "VirtualRide"]);
   const now = new Date();
   const dow = now.getDay(); // 0=Sun, 1=Mon...
   const daysFromMonday = dow === 0 ? 6 : dow - 1;

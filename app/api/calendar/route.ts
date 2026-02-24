@@ -7,7 +7,7 @@ import { kv, storeGoogleTokens, getActivities } from "@/lib/kv";
 import type { StoredSession, StoredWeekSchedule } from "@/lib/kv";
 import type { WorkoutSession } from "@/types";
 
-const GYM_STRAVA_TYPES = new Set(["WeightTraining", "Crossfit"]);
+const GYM_STRAVA_TYPES = new Set(["WeightTraining", "Crossfit", "Workout"]);
 
 function parseEventType(summary: string): string | null {
   if (summary.includes("CrossFit")) return "gym";

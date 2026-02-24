@@ -1,0 +1,320 @@
+"use client";
+
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import BottomNav from "@/components/BottomNav";
+import type { WodifyParsed, EnrichedSession } from "@/types";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function todayISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function loadBadgeStyle(load: string): string {
+  switch (load) {
+    case "very_high": return "bg-red-100 text-red-700 border-red-200";
+    case "high":      return "bg-orange-100 text-orange-700 border-orange-200";
+    case "moderate":  return "bg-amber-100 text-amber-700 border-amber-200";
+    default:          return "bg-green-100 text-green-700 border-green-200";
+  }
+}
+
+function intensityColor(score: number): string {
+  if (score >= 8) return "bg-red-500";
+  if (score >= 6) return "bg-orange-500";
+  if (score >= 4) return "bg-amber-500";
+  return "bg-green-500";
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function LogPage() {
+  const { status } = useSession();
+  const router = useRouter();
+
+  const [date, setDate] = useState(todayISO());
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [parsed, setParsed] = useState<WodifyParsed | null>(null);
+  const [enriched, setEnriched] = useState<EnrichedSession | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (status === "unauthenticated") router.push("/");
+  }, [status, router]);
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParsed(null);
+    setEnriched(null);
+    setParseError(null);
+    setConfirmed(false);
+
+    const reader = new FileReader();
+    reader.onload = () => setImageDataUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  async function handleParse() {
+    if (!imageDataUrl) return;
+    setParsing(true);
+    setParseError(null);
+    try {
+      const res = await fetch("/api/wodify/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageDataUrl, date }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Parse failed");
+      }
+      const data = await res.json();
+      setParsed(data.parsed);
+      setEnriched(data.enriched);
+    } catch (err) {
+      setParseError(String(err));
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  // Auto-parse once image is selected
+  useEffect(() => {
+    if (imageDataUrl && !parsed && !parsing) {
+      handleParse();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageDataUrl]);
+
+  // Collect all movements across sections
+  const allMovements = parsed?.sections.flatMap((s) => s.movements) ?? [];
+  const uniqueMovements = allMovements.filter((m, i) => allMovements.indexOf(m) === i);
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <header className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200">
+        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
+          <h1 className="font-bold text-gray-900 text-lg">Log Session</h1>
+          <input
+            type="date"
+            value={date}
+            max={todayISO()}
+            onChange={(e) => setDate(e.target.value)}
+            className="text-sm text-gray-600 border border-gray-200 rounded-lg px-2 py-1 bg-white"
+          />
+        </div>
+      </header>
+
+      <main className="max-w-lg mx-auto px-4 py-6 space-y-5">
+        {/* Upload area */}
+        {!confirmed && (
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <label
+              onClick={() => fileInputRef.current?.click()}
+              className={`flex flex-col items-center justify-center gap-3 w-full rounded-2xl border-2 border-dashed p-8 cursor-pointer transition-colors ${
+                imageDataUrl
+                  ? "border-indigo-300 bg-indigo-50"
+                  : "border-gray-300 bg-white hover:border-indigo-300 hover:bg-indigo-50"
+              }`}
+            >
+              <span className="text-4xl">📸</span>
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-700">
+                  {imageDataUrl ? "Tap to change screenshot" : "Upload Wodify screenshot"}
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Tap to open camera roll or take a photo
+                </p>
+              </div>
+            </label>
+          </div>
+        )}
+
+        {/* Image preview */}
+        {imageDataUrl && !confirmed && (
+          <div className="rounded-2xl overflow-hidden border border-gray-200 bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageDataUrl}
+              alt="Wodify screenshot preview"
+              className="w-full max-h-64 object-contain"
+            />
+          </div>
+        )}
+
+        {/* Parsing spinner */}
+        {parsing && (
+          <div className="flex flex-col items-center gap-3 py-8">
+            <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-gray-500">Parsing your WOD…</p>
+          </div>
+        )}
+
+        {/* Parse error */}
+        {parseError && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+            <p className="text-sm text-red-600">{parseError}</p>
+            <button
+              onClick={handleParse}
+              className="mt-2 text-sm text-red-500 underline"
+            >
+              Try again
+            </button>
+          </div>
+        )}
+
+        {/* Parsed result */}
+        {parsed && !confirmed && !parsing && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm space-y-4">
+            {/* Session type + load badges */}
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200 rounded-full px-2.5 py-1">
+                🏋️ {parsed.sessionType.replace(/_/g, " ")}
+              </span>
+              <span className={`text-xs font-medium border rounded-full px-2.5 py-1 ${loadBadgeStyle(parsed.overallLoad)}`}>
+                {parsed.overallLoad.replace("_", " ")} load
+              </span>
+              {parsed.box && (
+                <span className="text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 rounded-full px-2.5 py-1">
+                  📍 {parsed.box}
+                </span>
+              )}
+            </div>
+
+            {/* Sections */}
+            {parsed.sections.length > 0 && (
+              <div className="space-y-2">
+                {parsed.sections.map((section, i) => (
+                  <div key={i} className="bg-gray-50 rounded-xl p-3">
+                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">
+                      {section.type} — {section.name}
+                    </p>
+                    <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                      {section.description}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Movements */}
+            {uniqueMovements.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                  Movements
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {uniqueMovements.map((m) => (
+                    <span
+                      key={m}
+                      className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-2.5 py-1"
+                    >
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Strava match */}
+            {enriched?.performance ? (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-3">
+                <span className="text-lg">🏃</span>
+                <div className="text-xs text-green-700">
+                  <p className="font-semibold">Strava matched</p>
+                  <p>
+                    {enriched.performance.duration} min
+                    {enriched.performance.averageHR != null &&
+                      ` · avg HR ${enriched.performance.averageHR} bpm`}
+                    {enriched.performance.calories != null &&
+                      ` · ${enriched.performance.calories} kcal`}
+                  </p>
+                </div>
+              </div>
+            ) : enriched?.pendingMatch ? (
+              <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                <span className="text-lg">⏳</span>
+                <p className="text-xs text-amber-700">
+                  Strava sync pending — will match automatically when your session syncs.
+                </p>
+              </div>
+            ) : null}
+
+            {/* Enriched intensity */}
+            {enriched?.enrichedIntensity != null && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Intensity
+                  </p>
+                  <span className="text-sm font-bold text-gray-900">
+                    {enriched.enrichedIntensity}/10
+                  </span>
+                </div>
+                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${intensityColor(enriched.enrichedIntensity)}`}
+                    style={{ width: `${enriched.enrichedIntensity * 10}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Confirm button */}
+            <button
+              onClick={() => setConfirmed(true)}
+              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors"
+            >
+              Looks good ✓
+            </button>
+          </div>
+        )}
+
+        {/* Success state */}
+        {confirmed && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+            <p className="text-3xl mb-3">✅</p>
+            <p className="text-green-700 font-semibold">Session logged!</p>
+            <p className="text-green-600/70 text-sm mt-1">
+              {parsed?.box ? `${parsed.box} WOD saved` : "WOD saved"} for {date}.
+            </p>
+            <button
+              onClick={() => {
+                setImageDataUrl(null);
+                setParsed(null);
+                setEnriched(null);
+                setConfirmed(false);
+                setDate(todayISO());
+              }}
+              className="mt-4 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+            >
+              Log another session
+            </button>
+          </div>
+        )}
+      </main>
+
+      <BottomNav />
+    </div>
+  );
+}

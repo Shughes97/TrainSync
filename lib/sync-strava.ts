@@ -12,10 +12,11 @@ import { fetchAndStoreActivities, stravaTypeToWorkout } from "./strava";
 import { getWeekSchedule, type TrainingLoad } from "./kv";
 import { getCurrentPhase } from "./training-config";
 import { updateCalendarEvent } from "./google-calendar";
+import { resolvePendingSessions } from "./sessionMatcher";
 
-// WeightTraining and Crossfit on Strava both map to "Strength" via stravaTypeToWorkout,
-// but scheduled sessions may be typed as "Crossfit". Treat both as interchangeable.
-const GYM_TYPES = new Set(["Strength", "Crossfit"]);
+// WeightTraining, Crossfit, and Workout on Strava all map to gym sessions.
+// Treat all as interchangeable with scheduled Crossfit/Strength sessions.
+const GYM_TYPES = new Set(["Strength", "Crossfit", "Workout"]);
 
 export interface StravaSyncResult {
   activitiesCount: number;
@@ -126,6 +127,9 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
     kv.set("strava:training_load", trainingLoad),
     kv.set("strava:last_sync", new Date().toISOString()),
   ]);
+
+  // Resolve any Wodify sessions uploaded before the class synced to Strava
+  await resolvePendingSessions();
 
   return { activitiesCount: activities.length, completedSessions, trainingLoad };
 }

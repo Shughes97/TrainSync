@@ -98,3 +98,52 @@ export interface OpenGymSuggestion {
   exercises: OpenGymExercise[];
   note: string;
 }
+
+// ─── Wodify + Session Enrichment Types ────────────────────────────────────────
+
+export interface WodifySection {
+  type: "warmup" | "weightlifting" | "metcon" | "skill" | "cooldown";
+  name: string;
+  description: string;
+  movements: string[];
+  dominantMuscleGroups: string[];
+  estimatedIntensity: "low" | "moderate" | "high" | "very_high";
+  coachingNotes: string;
+}
+
+export interface WodifyParsed {
+  date: string; // YYYY-MM-DD
+  box: string;
+  sections: WodifySection[];
+  sessionType: "strength_only" | "metcon_only" | "strength_and_metcon" | "skill" | "endurance";
+  overallLoad: "low" | "moderate" | "high" | "very_high";
+}
+
+export interface EnrichedSession {
+  date: string;
+  source: "wodify+strava" | "wodify_pending" | "strava_only";
+  pendingMatch?: boolean;
+  wod?: {
+    sections: WodifySection[];
+    sessionType: string;
+    overallLoad: string;
+    box: string;
+  };
+  performance?: {
+    stravaActivityId: number;
+    duration: number;        // minutes
+    averageHR: number | null;
+    maxHR: number | null;
+    sufferScore: number | null;
+    calories: number | null;
+  };
+  enrichedIntensity?: number;  // 1–10
+  dominantStressType?: "cardiovascular" | "neuromuscular" | "mixed";
+}
+
+export interface ReadinessOutput {
+  score: number;           // 0–100
+  atl: number;             // Acute Training Load (7-day rolling average, 0–10 scale)
+  lastSessionSummary: string;
+  consecutiveNeuromuscularPenalty: boolean;
+}

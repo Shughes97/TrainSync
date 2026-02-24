@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import WorkoutCard from "@/components/WorkoutCard";
 import WeekFocusCard from "@/components/WeekFocusCard";
 import SyncStatusCard from "@/components/SyncStatusCard";
+import ReadinessCard from "@/components/ReadinessCard";
 import TimePickerModal, { type WeekDay } from "@/components/TimePickerModal";
 import BottomNav from "@/components/BottomNav";
 import Image from "next/image";
@@ -18,6 +19,7 @@ import {
 import type {
   CalEventsByDay,
   PhaseContext,
+  ReadinessOutput,
   WorkoutProposal,
   WorkoutSession,
   WorkoutType,
@@ -115,6 +117,7 @@ export default function Dashboard() {
   const [editingSession, setEditingSession] = useState<WorkoutSession | null>(null);
   const [unschedulingId, setUnschedulingId] = useState<string | null>(null);
   const [confirmUnschedule, setConfirmUnschedule] = useState<ScheduledEvent | null>(null);
+  const [readiness, setReadiness] = useState<ReadinessOutput | null>(null);
 
   const currentWeekISO = useMemo(() => weekStartForOffset(weekOffset), [weekOffset]);
 
@@ -177,6 +180,15 @@ export default function Dashboard() {
   useEffect(() => {
     if (status === "authenticated") loadSchedule(currentWeekISO);
   }, [status, currentWeekISO, loadSchedule]);
+
+  // Fetch readiness once on mount (not per-week — it's always today's score)
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    fetch("/api/readiness")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setReadiness(data); })
+      .catch(() => {});
+  }, [status]);
 
   // ─── Proposal actions ────────────────────────────────────────────────────────
 
@@ -380,6 +392,9 @@ export default function Dashboard() {
           daysUntilCentury={daysUntilCentury}
           daysUntilHoliday={daysUntilHoliday}
         />
+
+        {/* Daily readiness */}
+        {readiness && <ReadinessCard readiness={readiness} />}
 
         {/* Strava / calendar sync health */}
         <SyncStatusCard />
