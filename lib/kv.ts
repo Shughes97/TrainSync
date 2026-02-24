@@ -7,7 +7,7 @@
  */
 
 import { kv } from "@vercel/kv";
-import type { WodifyParsed, EnrichedSession } from "@/types";
+import type { WodifyParsed, EnrichedSession, OpenGymSuggestion } from "@/types";
 
 export { kv };
 
@@ -196,4 +196,32 @@ export async function setEnrichedSession(date: string, session: EnrichedSession)
   } catch {
     // silently ignore
   }
+}
+
+// ─── Prescribed session helpers ───────────────────────────────────────────────
+
+export async function getPrescribedSession(date: string): Promise<OpenGymSuggestion | null> {
+  return safeGet<OpenGymSuggestion>(`prescribed:${date}`);
+}
+
+export async function setPrescribedSession(date: string, suggestion: OpenGymSuggestion): Promise<void> {
+  try {
+    await kv.set(`prescribed:${date}`, suggestion);
+  } catch {
+    // silently ignore
+  }
+}
+
+export async function getRecentEnrichedSessions(days: number): Promise<(EnrichedSession | null)[]> {
+  const today = new Date();
+  const dates: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    dates.push(`${y}-${m}-${day}`);
+  }
+  return Promise.all(dates.map((date) => getEnrichedSession(date)));
 }

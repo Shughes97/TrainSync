@@ -121,7 +121,7 @@ export interface WodifyParsed {
 
 export interface EnrichedSession {
   date: string;
-  source: "wodify+strava" | "wodify_pending" | "strava_only";
+  source: "wodify+strava" | "wodify_pending" | "strava_only" | "prescribed+strava";
   pendingMatch?: boolean;
   wod?: {
     sections: WodifySection[];

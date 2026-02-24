@@ -13,8 +13,10 @@ import {
   getWodifyData,
   getActivities,
   setEnrichedSession,
+  getEnrichedSession,
+  getPrescribedSession,
 } from "./kv";
-import type { EnrichedSession } from "@/types";
+import type { EnrichedSession, WodifySection } from "@/types";
 
 const GYM_STRAVA_TYPES = new Set(["WeightTraining", "Crossfit", "Workout"]);
 const DEFAULT_MAX_HR = 190;
@@ -136,6 +138,84 @@ export async function matchAndEnrichSession(date: string): Promise<EnrichedSessi
 
   await setEnrichedSession(date, result);
   return result;
+}
+
+// ─── Prescribed session resolution (called after Strava sync) ────────────────
+
+function inferMuscleGroups(focus: string): string[] {
+  const f = focus.toLowerCase();
+  if (f.includes("push")) return ["push"];
+  if (f.includes("pull")) return ["pull"];
+  if (f.includes("leg") || f.includes("posterior") || f.includes("chain")) return ["quads", "posterior_chain"];
+  return ["full_body"];
+}
+
+export async function resolvePrescribedSessions(): Promise<void> {
+  try {
+    const [, keys] = await kv.scan(0, { match: "prescribed:*", count: 100 });
+    if (!keys || keys.length === 0) return;
+
+    const activities = await getActivities();
+
+    for (const key of keys) {
+      try {
+        const date = (key as string).replace("prescribed:", "");
+
+        // Skip if already have an enriched session for this date
+        const existing = await getEnrichedSession(date);
+        if (existing) continue;
+
+        // Look for a matching Strava gym activity on this date
+        const stravaActivity = activities.find(
+          (a) => a.start_date.startsWith(date) && GYM_STRAVA_TYPES.has(a.type)
+        );
+        if (!stravaActivity) continue;
+
+        const prescription = await getPrescribedSession(date);
+        if (!prescription) continue;
+
+        const syntheticSection: WodifySection = {
+          type: "weightlifting",
+          name: prescription.focus,
+          description: prescription.exercises.map((e) => `${e.name} — ${e.sets}`).join("\n"),
+          movements: prescription.exercises.map((e) => e.name),
+          dominantMuscleGroups: inferMuscleGroups(prescription.focus),
+          estimatedIntensity: "moderate",
+          coachingNotes: prescription.note,
+        };
+
+        const enrichedSession: EnrichedSession = {
+          date,
+          source: "prescribed+strava",
+          wod: {
+            sections: [syntheticSection],
+            sessionType: "strength_only",
+            overallLoad: "moderate",
+            box: "Open Gym",
+          },
+          performance: {
+            stravaActivityId: stravaActivity.id,
+            duration: Math.round(stravaActivity.moving_time / 60),
+            averageHR: stravaActivity.average_heartrate,
+            maxHR: stravaActivity.max_heartrate,
+            sufferScore: stravaActivity.suffer_score,
+            calories: stravaActivity.calories,
+          },
+          dominantStressType: "neuromuscular",
+          enrichedIntensity: Math.min(
+            Math.round((stravaActivity.suffer_score ?? 50) / 10),
+            10
+          ),
+        };
+
+        await setEnrichedSession(date, enrichedSession);
+      } catch {
+        // skip individual failures silently
+      }
+    }
+  } catch {
+    // silently ignore if KV unavailable
+  }
 }
 
 // ─── Pending resolution (called after Strava sync) ───────────────────────────
