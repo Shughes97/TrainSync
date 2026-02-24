@@ -16,7 +16,7 @@ const WINDOW_CONTEXT = {
 const WORKOUT_COLORS: Record<WorkoutType, string> = {
   Crossfit: "bg-orange-500",
   Strength: "bg-amber-500",
-  Run:      "bg-teal-500",
+  Run:      "bg-rose-500",
   Bike:     "bg-blue-500",
 };
 
