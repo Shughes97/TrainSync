@@ -212,6 +212,24 @@ export async function setPrescribedSession(date: string, suggestion: OpenGymSugg
   }
 }
 
+export async function clearUncompletedPrescriptions(): Promise<void> {
+  try {
+    const [, keys] = await kv.scan(0, { match: "prescribed:*", count: 100 });
+    if (!keys || keys.length === 0) return;
+    for (const key of keys) {
+      try {
+        const date = (key as string).replace("prescribed:", "");
+        const enriched = await getEnrichedSession(date);
+        if (!enriched) await kv.del(key as string);
+      } catch {
+        // skip individual failures silently
+      }
+    }
+  } catch {
+    // silently ignore if KV unavailable
+  }
+}
+
 export async function getRecentEnrichedSessions(days: number): Promise<(EnrichedSession | null)[]> {
   const today = new Date();
   const dates: string[] = [];

@@ -9,7 +9,7 @@
 
 import { kv } from "@vercel/kv";
 import { fetchAndStoreActivities, stravaTypeToWorkout } from "./strava";
-import { getWeekSchedule, type TrainingLoad } from "./kv";
+import { getWeekSchedule, clearUncompletedPrescriptions, type TrainingLoad } from "./kv";
 import { getCurrentPhase } from "./training-config";
 import { updateCalendarEvent } from "./google-calendar";
 import { resolvePendingSessions, resolvePrescribedSessions } from "./sessionMatcher";
@@ -132,6 +132,9 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
   await resolvePendingSessions();
   // Resolve any open-gym strength sessions that now have a matching Strava activity
   await resolvePrescribedSessions();
+  // Clear uncompleted prescriptions so the next dashboard load regenerates them
+  // with the latest session history (e.g. a hard session earlier in the week)
+  await clearUncompletedPrescriptions();
 
   return { activitiesCount: activities.length, completedSessions, trainingLoad };
 }
