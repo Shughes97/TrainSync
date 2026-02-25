@@ -157,7 +157,7 @@ function SystemCard({
       <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
         <div
           className={`h-full rounded-full transition-all ${systemBarColor(state.score)}`}
-          style={{ width: `${state.score}%` }}
+          style={{ width: `${state.freshness}%` }}
         />
       </div>
 
