@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { PhaseContext, WorkoutProposal, WorkoutType } from "@/types";
+import { daysUntilGoal } from "@/lib/training-config";
+import type { Goal, PhaseContext, WorkoutProposal, WorkoutType } from "@/types";
 
 interface WeekFocusCardProps {
   phaseContext: PhaseContext | null;
   proposals: WorkoutProposal[];
-  daysUntilCentury: number;
-  daysUntilHoliday: number;
+  goals: Goal[];
 }
 
 const SESSION_ICONS: Record<WorkoutType, string> = {
@@ -20,16 +20,12 @@ const SESSION_ICONS: Record<WorkoutType, string> = {
 export default function WeekFocusCard({
   phaseContext,
   proposals,
-  daysUntilCentury,
-  daysUntilHoliday,
+  goals,
 }: WeekFocusCardProps) {
   if (!phaseContext) return null;
 
   const { phase, weekInPhase, weeksInPhase } = phaseContext;
   const progressPct = ((weekInPhase - 1) / weeksInPhase) * 100;
-
-  const weeksUntilCentury = Math.ceil(daysUntilCentury / 7);
-  const weeksUntilHoliday = Math.ceil(daysUntilHoliday / 7);
 
   const proposalsByType: Record<string, WorkoutProposal[]> = {};
   for (const p of proposals) {
@@ -49,6 +45,13 @@ export default function WeekFocusCard({
       status: proposal?.status ?? "missing",
     };
   });
+
+  // Build countdown chips for upcoming goals only
+  const upcomingGoals = goals
+    .map((g) => ({ ...g, days: daysUntilGoal(g.date) }))
+    .filter((g) => g.days > 0)
+    .sort((a, b) => a.days - b.days)
+    .slice(0, 3); // show up to 3 upcoming goals
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3 shadow-sm">
@@ -85,28 +88,23 @@ export default function WeekFocusCard({
       </p>
 
       {/* Goal countdowns */}
-      <div className="flex gap-2">
-        {daysUntilCentury > 0 && (
-          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-center">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
-              🚴 Century Ride
-            </p>
-            <p className="text-base font-bold text-gray-900">
-              {weeksUntilCentury}w
-            </p>
-          </div>
-        )}
-        {daysUntilHoliday > 0 && (
-          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-center">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
-              🏖️ Holiday
-            </p>
-            <p className="text-base font-bold text-gray-900">
-              {weeksUntilHoliday}w
-            </p>
-          </div>
-        )}
-      </div>
+      {upcomingGoals.length > 0 && (
+        <div className="flex gap-2">
+          {upcomingGoals.map((goal) => (
+            <div
+              key={goal.id}
+              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-center"
+            >
+              <p className="text-[10px] text-gray-500 uppercase tracking-wide mb-0.5">
+                {goal.emoji} {goal.label}
+              </p>
+              <p className="text-base font-bold text-gray-900">
+                {Math.ceil(goal.days / 7)}w
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 5-slot session tracker */}
       <div className="flex gap-1.5">

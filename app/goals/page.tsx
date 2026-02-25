@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import {
-  GOALS,
   TRAINING_PHASES,
   PLAN_START,
   daysUntilGoal,
@@ -12,6 +11,7 @@ import {
   getCurrentPhase,
 } from "@/lib/training-config";
 import type { StoredActivity, TrainingLoad } from "@/lib/kv";
+import type { Goal } from "@/types";
 
 function formatMins(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -44,6 +44,7 @@ export default function GoalsPage() {
   const [activities, setActivities] = useState<StoredActivity[]>([]);
   const [trainingLoad, setTrainingLoad] = useState<TrainingLoad | null>(null);
   const [stravaConnected, setStravaConnected] = useState<boolean | null>(null);
+  const [goals, setGoals] = useState<Goal[]>([]);
 
   useEffect(() => {
     fetch("/api/sync/status")
@@ -54,6 +55,11 @@ export default function GoalsPage() {
         setStravaConnected(d.stravaConnected ?? false);
       })
       .catch(() => setStravaConnected(false));
+
+    fetch("/api/athlete")
+      .then((r) => r.ok ? r.json() : null)
+      .then((profile) => { if (profile?.goals) setGoals(profile.goals); })
+      .catch(() => {});
   }, []);
 
   return (
@@ -79,7 +85,7 @@ export default function GoalsPage() {
       <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
         {/* Goal countdown cards */}
         <div className="grid grid-cols-2 gap-3">
-          {GOALS.map((goal) => {
+          {goals.map((goal) => {
             const days = daysUntilGoal(goal.date, today);
             const weeks = Math.ceil(days / 7);
             const dateStr = new Date(goal.date + "T12:00:00").toLocaleDateString(

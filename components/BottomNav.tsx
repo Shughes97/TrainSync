@@ -8,6 +8,7 @@ const tabs = [
   { href: "/dashboard", label: "Schedule", icon: "🗓" },
   { href: "/progress", label: "Progress", icon: "📊" },
   { href: "/log", label: "Log", icon: "📸" },
+  { href: "/about", label: "Profile", icon: "👤" },
 ];
 
 export default function BottomNav() {

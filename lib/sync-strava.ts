@@ -9,7 +9,7 @@
 
 import { kv } from "@vercel/kv";
 import { fetchAndStoreActivities, stravaTypeToWorkout } from "./strava";
-import { getWeekSchedule, clearUncompletedPrescriptions, type TrainingLoad } from "./kv";
+import { getWeekSchedule, clearUncompletedPrescriptions, getAthleteProfile, setAthleteProfile, type TrainingLoad } from "./kv";
 import { getCurrentPhase } from "./training-config";
 import { updateCalendarEvent } from "./google-calendar";
 import { resolvePendingSessions, resolvePrescribedSessions } from "./sessionMatcher";
@@ -28,7 +28,23 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
   // 1. Fetch + store activities
   const activities = await fetchAndStoreActivities(accessToken);
 
-  // 2. Cross-reference with current week schedule
+  // 2. Auto-detect max HR from Strava history
+  const detectedMaxHR = activities
+    .map((a) => a.max_heartrate)
+    .filter((hr): hr is number => hr != null && hr > 0)
+    .reduce((max, hr) => Math.max(max, hr), 0);
+  if (detectedMaxHR > 0) {
+    try {
+      const athleteProfile = await getAthleteProfile();
+      if (athleteProfile && (athleteProfile.maxHR == null || detectedMaxHR > athleteProfile.maxHR)) {
+        await setAthleteProfile({ ...athleteProfile, maxHR: detectedMaxHR, maxHRSource: "strava_auto" });
+      }
+    } catch {
+      // silently ignore — non-critical
+    }
+  }
+
+  // 3. Cross-reference with current week schedule
   const weekSchedule = await getWeekSchedule();
   let completedSessions = 0;
 
@@ -82,7 +98,7 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
     });
   }
 
-  // 3. Compute rolling 7-day training load
+  // 4. Compute rolling 7-day training load
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
   const thisWeek = activities.filter((a) => {

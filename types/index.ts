@@ -66,7 +66,7 @@ export interface Goal {
   id: string;
   label: string;
   date: string; // YYYY-MM-DD
-  type: "endurance_event" | "physique";
+  type: "endurance_event" | "physique" | "strength" | "other";
   emoji: string;
 }
 
@@ -137,8 +137,11 @@ export interface EnrichedSession {
     sufferScore: number | null;
     calories: number | null;
   };
-  enrichedIntensity?: number;  // 1–10
+  enrichedIntensity?: number;      // 1–10
   dominantStressType?: "cardiovascular" | "neuromuscular" | "mixed";
+  neuromuscularLoad?: number;      // 0–100 normalised
+  sessionNotes?: { raw: string; parsed: ParsedSessionNotes };
+  newPersonalBests?: PersonalBest[];
 }
 
 export interface ReadinessOutput {
@@ -146,4 +149,70 @@ export interface ReadinessOutput {
   atl: number;             // Acute Training Load (7-day rolling average, 0–10 scale)
   lastSessionSummary: string;
   consecutiveNeuromuscularPenalty: boolean;
+}
+
+// ─── Athlete Profile Types ─────────────────────────────────────────────────────
+
+export type LiftKey =
+  | "frontSquat"
+  | "backSquat"
+  | "deadlift"
+  | "clean"
+  | "snatch"
+  | "benchPress"
+  | "strictPress";
+
+export type OneRepMaxes = Record<LiftKey, number | null>;
+
+export interface OneRepMaxEntry {
+  lift: string;
+  estimatedMax: number;
+  date: string;             // YYYY-MM-DD
+  source: "manual" | "session_log" | "auto_calculated";
+  notes: string;
+}
+
+export interface PersonalBest {
+  lift: string;
+  weight: number;           // kg
+  reps: number;
+  date: string;             // YYYY-MM-DD
+  sessionId: string;
+}
+
+export interface LiftData {
+  lift: string;             // camelCase LiftKey
+  topSetWeight: number;     // kg
+  topSetReps: number;
+  estimatedOneRM: number | null;
+  rpe: number | null;
+}
+
+export interface ParsedSessionNotes {
+  liftData: LiftData[];
+  metconNotes: {
+    weight: number | null;
+    scaling: string | null;
+    feeling: string | null;
+  };
+  sessionRPE: number | null;
+  sentiment: "positive" | "neutral" | "negative";
+  injuryFlag: boolean;
+  injuryNotes: string | null;
+}
+
+export interface AthleteProfile {
+  name: string;
+  age: number | null;
+  height: number | null;            // cm
+  weight: number | null;            // kg
+  maxHR: number | null;
+  maxHRSource?: "manual" | "strava_auto";
+  trainingAge: "1-2 years" | "3-5 years" | "5+ years" | null;
+  oneRepMaxes: OneRepMaxes;
+  oneRepMaxHistory: OneRepMaxEntry[];
+  personalBests: PersonalBest[];
+  goals: Goal[];
+  preferredWorkoutWindows: string[];
+  weightUnit: "kg";
 }

@@ -11,12 +11,10 @@ import TimePickerModal, { type WeekDay } from "@/components/TimePickerModal";
 import BottomNav from "@/components/BottomNav";
 import Image from "next/image";
 import { formatDay, getWeekStart } from "@/lib/scheduler";
-import {
-  getCurrentPhase,
-  daysUntilGoal,
-} from "@/lib/training-config";
+import { getCurrentPhase } from "@/lib/training-config";
 import type {
   CalEventsByDay,
+  Goal,
   PhaseContext,
   ReadinessOutput,
   WorkoutProposal,
@@ -117,6 +115,7 @@ export default function Dashboard() {
   const [unschedulingId, setUnschedulingId] = useState<string | null>(null);
   const [confirmUnschedule, setConfirmUnschedule] = useState<ScheduledEvent | null>(null);
   const [readiness, setReadiness] = useState<ReadinessOutput | null>(null);
+  const [goals, setGoals] = useState<Goal[]>([]);
 
   const currentWeekISO = useMemo(() => weekStartForOffset(weekOffset), [weekOffset]);
 
@@ -124,9 +123,6 @@ export default function Dashboard() {
     () => getCurrentPhase(new Date(currentWeekISO + "T12:00:00")),
     [currentWeekISO]
   );
-
-  const daysUntilCentury = useMemo(() => daysUntilGoal("2026-05-08"), []);
-  const daysUntilHoliday = useMemo(() => daysUntilGoal("2026-06-15"), []);
 
   // The target for the viewed week (phase-specific or default)
   const weeklyTarget = phaseContext?.phase.weeklyPlan ?? DEFAULT_TARGET;
@@ -180,12 +176,16 @@ export default function Dashboard() {
     if (status === "authenticated") loadSchedule(currentWeekISO);
   }, [status, currentWeekISO, loadSchedule]);
 
-  // Fetch readiness once on mount (not per-week — it's always today's score)
+  // Fetch readiness and athlete profile once on mount
   useEffect(() => {
     if (status !== "authenticated") return;
     fetch("/api/readiness")
       .then((r) => r.ok ? r.json() : null)
       .then((data) => { if (data) setReadiness(data); })
+      .catch(() => {});
+    fetch("/api/athlete")
+      .then((r) => r.ok ? r.json() : null)
+      .then((profile) => { if (profile?.goals) setGoals(profile.goals); })
       .catch(() => {});
   }, [status]);
 
@@ -388,8 +388,7 @@ export default function Dashboard() {
         <WeekFocusCard
           phaseContext={phaseContext}
           proposals={proposals}
-          daysUntilCentury={daysUntilCentury}
-          daysUntilHoliday={daysUntilHoliday}
+          goals={goals}
         />
 
         {/* Daily readiness */}

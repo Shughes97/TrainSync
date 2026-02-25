@@ -4,7 +4,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
-import type { WodifyParsed, EnrichedSession } from "@/types";
+import type { WodifyParsed, EnrichedSession, PersonalBest } from "@/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +45,9 @@ export default function LogPage() {
   const [parsed, setParsed] = useState<WodifyParsed | null>(null);
   const [enriched, setEnriched] = useState<EnrichedSession | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [notes, setNotes] = useState("");
+  const [confirmingNotes, setConfirmingNotes] = useState(false);
+  const [newPRs, setNewPRs] = useState<PersonalBest[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -61,6 +64,8 @@ export default function LogPage() {
     setEnriched(null);
     setParseError(null);
     setConfirmed(false);
+    setNotes("");
+    setNewPRs([]);
 
     let loaded = 0;
     const urls: string[] = new Array(files.length);
@@ -107,6 +112,30 @@ export default function LogPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageDataUrls]);
+
+  async function handleConfirm() {
+    setConfirmingNotes(true);
+    try {
+      if (notes.trim() && parsed) {
+        const res = await fetch("/api/session/parse-notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date, notes, wodContext: parsed }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.newPersonalBests?.length) {
+            setNewPRs(data.newPersonalBests);
+          }
+        }
+      }
+    } catch {
+      // non-fatal — notes parsing failure shouldn't block confirmation
+    } finally {
+      setConfirmingNotes(false);
+      setConfirmed(true);
+    }
+  }
 
   const allMovements = parsed?.sections.flatMap((s) => s.movements) ?? [];
   const uniqueMovements = allMovements.filter((m, i) => allMovements.indexOf(m) === i);
@@ -294,35 +323,75 @@ export default function LogPage() {
               </div>
             )}
 
+            {/* Session notes */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                Session notes (optional)
+              </p>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Anything to add? e.g. weights you used, how it felt, any notes"
+                rows={3}
+                className="w-full text-sm rounded-xl border border-gray-200 px-3 py-2.5 bg-gray-50 placeholder-gray-400 resize-none focus:outline-none focus:border-indigo-300"
+              />
+            </div>
+
             <button
-              onClick={() => setConfirmed(true)}
-              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors"
+              onClick={handleConfirm}
+              disabled={confirmingNotes}
+              className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
             >
-              Looks good ✓
+              {confirmingNotes ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Saving…
+                </>
+              ) : "Looks good ✓"}
             </button>
           </div>
         )}
 
         {/* Success */}
         {confirmed && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
-            <p className="text-3xl mb-3">✅</p>
-            <p className="text-green-700 font-semibold">Session logged!</p>
-            <p className="text-green-600/70 text-sm mt-1">
-              {parsed?.box ? `${parsed.box} WOD saved` : "WOD saved"} for {date}.
-            </p>
-            <button
-              onClick={() => {
-                setImageDataUrls([]);
-                setParsed(null);
-                setEnriched(null);
-                setConfirmed(false);
-                setDate(todayISO());
-              }}
-              className="mt-4 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              Log another session
-            </button>
+          <div className="space-y-3">
+            {/* Personal best celebration */}
+            {newPRs.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                <p className="text-amber-800 font-semibold text-sm mb-2">
+                  🏆 New Personal Best{newPRs.length > 1 ? "s" : ""}!
+                </p>
+                {newPRs.map((pr) => (
+                  <p key={pr.lift} className="text-amber-700 text-sm">
+                    {pr.lift.replace(/([A-Z])/g, " $1").trim()}: estimated 1RM —{" "}
+                    <span className="font-semibold">
+                      {Math.round(pr.weight * (1 + pr.reps / 30) * 10) / 10}kg
+                    </span>
+                  </p>
+                ))}
+              </div>
+            )}
+            <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
+              <p className="text-3xl mb-3">✅</p>
+              <p className="text-green-700 font-semibold">Session logged!</p>
+              <p className="text-green-600/70 text-sm mt-1">
+                {parsed?.box ? `${parsed.box} WOD saved` : "WOD saved"} for {date}.
+              </p>
+              <button
+                onClick={() => {
+                  setImageDataUrls([]);
+                  setParsed(null);
+                  setEnriched(null);
+                  setConfirmed(false);
+                  setNotes("");
+                  setNewPRs([]);
+                  setDate(todayISO());
+                }}
+                className="mt-4 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              >
+                Log another session
+              </button>
+            </div>
           </div>
         )}
       </main>

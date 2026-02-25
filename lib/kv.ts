@@ -7,7 +7,7 @@
  */
 
 import { kv } from "@vercel/kv";
-import type { WodifyParsed, EnrichedSession, OpenGymSuggestion } from "@/types";
+import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile } from "@/types";
 
 export { kv };
 
@@ -242,4 +242,18 @@ export async function getRecentEnrichedSessions(days: number): Promise<(Enriched
     dates.push(`${y}-${m}-${day}`);
   }
   return Promise.all(dates.map((date) => getEnrichedSession(date)));
+}
+
+// ─── Athlete profile helpers ──────────────────────────────────────────────────
+
+export async function getAthleteProfile(): Promise<AthleteProfile | null> {
+  return safeGet<AthleteProfile>("athlete:profile");
+}
+
+export async function setAthleteProfile(profile: AthleteProfile): Promise<void> {
+  try {
+    await kv.set("athlete:profile", profile);
+  } catch {
+    // silently ignore if KV unavailable
+  }
 }
