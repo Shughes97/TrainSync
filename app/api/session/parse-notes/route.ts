@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import Anthropic from "@anthropic-ai/sdk";
 import { getAthleteProfile, setAthleteProfile, getEnrichedSession, setEnrichedSession } from "@/lib/kv";
 import { calculateNeuromuscularLoad, normalizeNeuromuscularLoad } from "@/lib/neuromuscularLoad";
-import type { LiftKey, LiftData, OneRepMaxEntry, PersonalBest, ParsedSessionNotes } from "@/types";
+import type { LiftKey, OneRepMaxEntry, PersonalBest, ParsedSessionNotes } from "@/types";
 
 function todayISO(): string {
   const d = new Date();
