@@ -10,7 +10,8 @@ import { kv } from "@/lib/kv";
 import { computeNeuromuscularFatigue } from "./neuromuscular";
 import { computeCardiovascularFatigue } from "./cardiovascular";
 import { computeMetabolicFatigue } from "./metabolic";
-import type { FatigueSnapshot } from "@/types";
+import { computeSleepState } from "@/lib/sleep";
+import type { FatigueSnapshot, SleepState } from "@/types";
 
 export type { FatigueSnapshot };
 
@@ -38,9 +39,18 @@ function buildRecommendation(
   overallScore: number,
   neuroScore: number,
   cardioScore: number,
-  metabolicScore: number
+  metabolicScore: number,
+  sleepScore: number | null
 ): string {
+  // Sleep is a hard override — if badly sleep-deprived, say so first
+  if (sleepScore != null && sleepScore < 40) {
+    return "Poor sleep is your biggest limiter right now. Prioritise rest and keep any training very light.";
+  }
+
   if (overallScore >= 80) {
+    if (sleepScore != null && sleepScore < 70) {
+      return "Training systems are fresh but sleep has been below par. A solid session is fine — just manage intensity.";
+    }
     return "You're fresh across all systems. Today is a great day to push hard.";
   }
   if (overallScore >= 60) {
@@ -74,7 +84,7 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
   const dateStr = isoDate(today);
 
   // Load data in parallel
-  const [sessions, activities, athleteProfile, neuroHistory, cardioHistory, metabolicHistory] =
+  const [sessions, activities, athleteProfile, neuroHistory, cardioHistory, metabolicHistory, sleepState] =
     await Promise.all([
       getRecentEnrichedSessions(14),
       getActivities(),
@@ -82,7 +92,16 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
       loadHistory("neuromuscular"),
       loadHistory("cardiovascular"),
       loadHistory("metabolic"),
-    ]);
+      computeSleepState(today),
+    ]) as [
+      Awaited<ReturnType<typeof getRecentEnrichedSessions>>,
+      Awaited<ReturnType<typeof getActivities>>,
+      Awaited<ReturnType<typeof getAthleteProfile>>,
+      number[],
+      number[],
+      number[],
+      SleepState
+    ];
 
   // Compute metabolic first (needed for neuromuscular half-life extension)
   const metabolicState = computeMetabolicFatigue(
@@ -98,12 +117,25 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
     sessions, activities, athleteProfile, today, cardioHistory
   );
 
-  // Overall: neuro 35%, cardio 35%, metabolic 30%
-  const overallScore = Math.round(
-    neuromuscularState.score * 0.35 +
-    cardiovascularState.score * 0.35 +
-    metabolicState.score * 0.30
-  );
+  // Overall fatigue — weights shift when sleep data is available
+  const sleepFatigue =
+    sleepState.overallSleepScore != null
+      ? 100 - sleepState.overallSleepScore  // invert: poor sleep = high fatigue
+      : null;
+
+  const overallScore =
+    sleepFatigue != null
+      ? Math.round(
+          neuromuscularState.score * 0.30 +
+          cardiovascularState.score * 0.30 +
+          metabolicState.score * 0.25 +
+          sleepFatigue * 0.15
+        )
+      : Math.round(
+          neuromuscularState.score * 0.35 +
+          cardiovascularState.score * 0.35 +
+          metabolicState.score * 0.30
+        );
 
   // Invert: overall is "readiness" — higher is BETTER
   // But fatigue scores are "higher = more fatigued", so readiness = 100 - fatigue
@@ -114,7 +146,8 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
     readinessScore,
     neuromuscularState.score,
     cardiovascularState.score,
-    metabolicState.score
+    metabolicState.score,
+    sleepState.overallSleepScore
   );
 
   // HRV estimate from resting HR (lower resting HR = higher HRV proxy)
@@ -129,12 +162,13 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
     neuromuscular: neuromuscularState,
     cardiovascular: cardiovascularState,
     metabolic: metabolicState,
+    sleep: sleepState,
     overall: {
       score: readinessScore,
       verdict,
       verdictEmoji,
       recommendation,
-      sleepScore: null,
+      sleepScore: sleepState.overallSleepScore,
       hrvScore,
     },
   };

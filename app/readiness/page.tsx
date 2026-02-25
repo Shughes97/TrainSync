@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import BottomNav from "@/components/BottomNav";
-import type { FatigueSnapshot, FatigueSystemState } from "@/types";
+import type { FatigueSnapshot, FatigueSystemState, SleepState } from "@/types";
 import type { StoredActivity } from "@/lib/kv";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -54,6 +54,20 @@ function trendColor(trend: FatigueSystemState["trend"]): string {
   if (trend === "improving") return "text-green-600";
   if (trend === "worsening") return "text-red-500";
   return "text-gray-400";
+}
+
+function sleepScoreColor(score: number): string {
+  if (score >= 80) return "text-green-600";
+  if (score >= 60) return "text-amber-600";
+  if (score >= 40) return "text-orange-600";
+  return "text-red-600";
+}
+
+function sleepScoreBar(score: number): string {
+  if (score >= 80) return "bg-green-500";
+  if (score >= 60) return "bg-amber-500";
+  if (score >= 40) return "bg-orange-500";
+  return "bg-red-500";
 }
 
 // ─── Circular gauge (SVG arc) ─────────────────────────────────────────────────
@@ -174,6 +188,105 @@ function SystemCard({
   );
 }
 
+// ─── Sleep card ───────────────────────────────────────────────────────────────
+
+function SleepCard({
+  sleep,
+  onLogSleep,
+}: {
+  sleep: SleepState;
+  onLogSleep: (hours: number) => Promise<void>;
+}) {
+  const [hours, setHours] = useState(7.5);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await onLogSleep(hours);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const rows = [
+    { label: "Last night", h: sleep.lastNight?.hours ?? null, score: sleep.lastNightScore },
+    { label: "3-day avg",  h: sleep.rolling3DayAvgHours,      score: sleep.rolling3DayScore },
+    { label: "7-day avg",  h: sleep.rolling7DayAvgHours,      score: sleep.rolling7DayScore },
+  ];
+
+  const sparkData = sleep.history.map((v) => v ?? 0);
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">😴</span>
+          <span className="text-sm font-semibold text-gray-900">Sleep</span>
+          {sleep.trend && (
+            <span className={`text-xs font-medium ${trendColor(sleep.trend)}`}>
+              {trendIcon(sleep.trend)} {sleep.trend.charAt(0).toUpperCase() + sleep.trend.slice(1)}
+            </span>
+          )}
+        </div>
+        {sparkData.some((v) => v > 0) && (
+          <Sparkline data={sparkData} color="#6366f1" />
+        )}
+      </div>
+
+      <div className="space-y-2 mb-1">
+        {rows.map(({ label, h, score }) => (
+          <div key={label} className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 w-20 shrink-0">{label}</span>
+            {h != null ? (
+              <>
+                <span className="text-xs font-medium text-gray-700 w-10 shrink-0 tabular-nums">
+                  {h.toFixed(1)}h
+                </span>
+                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${score != null ? sleepScoreBar(score) : "bg-gray-300"}`}
+                    style={{ width: `${score ?? 0}%` }}
+                  />
+                </div>
+                <span className={`text-xs font-semibold tabular-nums w-7 text-right ${score != null ? sleepScoreColor(score) : "text-gray-400"}`}>
+                  {score ?? "–"}
+                </span>
+              </>
+            ) : (
+              <span className="text-xs text-gray-300 flex-1">No data</span>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {sleep.lastNight === null && (
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+          <span className="text-xs text-gray-500 shrink-0">Log last night:</span>
+          <input
+            type="number"
+            min={0}
+            max={14}
+            step={0.5}
+            value={hours}
+            onChange={(e) => setHours(parseFloat(e.target.value) || 0)}
+            className="w-14 text-sm text-center border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+          <span className="text-xs text-gray-400">hrs</span>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="ml-auto text-xs px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-500 disabled:opacity-50"
+          >
+            {submitting ? "Saving…" : "Save"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 // ─── CTL/ATL/TSB chart ────────────────────────────────────────────────────────
 
 interface PmcPoint {
@@ -232,10 +345,15 @@ export default function ReadinessPage() {
   const [loading, setLoading] = useState(true);
   const [recalculating, setRecalculating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [host, setHost] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
+
+  useEffect(() => {
+    setHost(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -264,6 +382,23 @@ export default function ReadinessPage() {
       }
     } finally {
       setRecalculating(false);
+    }
+  }
+
+  async function handleLogSleep(hours: number) {
+    const res = await fetch("/api/health/sleep", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hours, source: "manual" }),
+    });
+    if (res.ok) {
+      // Trigger a recalculate so the snapshot reflects the new sleep data
+      const recalc = await fetch("/api/fatigue/recalculate", { method: "POST" });
+      if (recalc.ok) {
+        const { snapshot: fresh } = await recalc.json();
+        setSnapshot(fresh);
+        setLastUpdated(new Date().toLocaleTimeString());
+      }
     }
   }
 
@@ -325,6 +460,9 @@ export default function ReadinessPage() {
                 </div>
               </div>
             </div>
+
+            {/* Sleep card */}
+            <SleepCard sleep={snapshot.sleep} onLogSleep={handleLogSleep} />
 
             {/* Three system cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -406,6 +544,50 @@ export default function ReadinessPage() {
                 <p className="text-[10px] text-gray-400 mt-1">
                   Based on Strava effort scores. TSB = CTL − ATL (positive = fresh, negative = fatigued).
                 </p>
+              </div>
+            )}
+
+            {/* Apple Health / iOS Shortcut setup — only shown when no sleep synced */}
+            {snapshot.sleep.lastNight === null && (
+              <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-base">📱</span>
+                  <span className="text-sm font-semibold text-gray-900">Auto-sync sleep via iOS Shortcut</span>
+                </div>
+                <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                  Build an iOS Shortcut that runs at wake-up to automatically log your sleep from Apple Health.
+                </p>
+                <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-3">
+                  <code className="text-xs text-gray-700 break-all flex-1">
+                    POST {host}/api/health/sleep
+                  </code>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(`${host}/api/health/sleep`)}
+                    className="text-xs text-indigo-500 hover:text-indigo-700 shrink-0 font-medium"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <details className="group">
+                  <summary className="cursor-pointer text-xs font-medium text-gray-700 list-none flex items-center gap-1">
+                    <span className="group-open:rotate-90 transition-transform inline-block">▶</span>
+                    Shortcut steps
+                  </summary>
+                  <ol className="mt-2 space-y-1 text-xs text-gray-500 list-decimal list-inside leading-relaxed">
+                    <li>Get Today&apos;s Date → format as YYYY-MM-DD</li>
+                    <li>Get Health Samples → Sleep Analysis, Yesterday 8 PM to Now</li>
+                    <li>Filter samples where Category Value is Asleep</li>
+                    <li>Calculate Statistics → Sum of Duration</li>
+                    <li>Divide duration by 3600 to convert to hours</li>
+                    <li>Make Web Request → POST {host}/api/health/sleep</li>
+                    <li>Set header: <code className="bg-gray-100 rounded px-1">Authorization: Bearer [HEALTH_SYNC_SECRET]</code></li>
+                    <li>Body (JSON): <code className="bg-gray-100 rounded px-1">{`{"date":"[Date]","hours":[Hours]}`}</code></li>
+                    <li>Set as a Personal Automation triggered by Wake Up Alarm</li>
+                  </ol>
+                  <p className="mt-2 text-xs text-gray-400">
+                    Set <code className="bg-gray-100 rounded px-1">HEALTH_SYNC_SECRET</code> in your Vercel environment variables and use that value as the Bearer token.
+                  </p>
+                </details>
               </div>
             )}
 

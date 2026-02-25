@@ -156,17 +156,42 @@ export interface FatigueSystemState {
   history: number[];                   // last 7 days scores, oldest first
 }
 
+// ─── Sleep Types ───────────────────────────────────────────────────────────────
+
+export interface SleepEntry {
+  date: string;          // YYYY-MM-DD — morning date (the day you woke up)
+  hours: number;         // total hours asleep
+  asleepMins: number;
+  deepMins: number | null;
+  remMins: number | null;
+  source: "shortcut" | "manual";
+  createdAt: string;     // ISO timestamp
+}
+
+export interface SleepState {
+  lastNight: SleepEntry | null;
+  lastNightScore: number | null;       // 0–100
+  rolling3DayAvgHours: number | null;
+  rolling3DayScore: number | null;     // 0–100
+  rolling7DayAvgHours: number | null;
+  rolling7DayScore: number | null;     // 0–100
+  overallSleepScore: number | null;    // lastNight×50% + 3day×30% + 7day×20%
+  trend: "improving" | "stable" | "worsening";
+  history: (number | null)[];          // last 7 nights hours, oldest first
+}
+
 export interface FatigueSnapshot {
   date: string;                        // YYYY-MM-DD
   neuromuscular: FatigueSystemState;
   cardiovascular: FatigueSystemState;
   metabolic: FatigueSystemState;
+  sleep: SleepState;
   overall: {
-    score: number;                     // neuro×35% + cardio×35% + metabolic×30%
+    score: number;                     // weighted across all systems
     verdict: "ready" | "moderate" | "caution" | "recover";
     verdictEmoji: "🟢" | "🟡" | "🟠" | "🔴";
     recommendation: string;
-    sleepScore: number | null;
+    sleepScore: number | null;         // = sleep.overallSleepScore
     hrvScore: number | null;           // estimated from restingHR
   };
 }

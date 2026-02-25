@@ -79,10 +79,15 @@ export default function AboutPage() {
   const [loading, setLoading] = useState(true);
   const { show: saved, flash: flashSaved } = useSavedFlash();
   const [editingGoalIdx, setEditingGoalIdx] = useState<number | null>(null);
+  const [host, setHost] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
+
+  useEffect(() => {
+    setHost(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (status !== "authenticated") return;
@@ -500,6 +505,35 @@ export default function AboutPage() {
                 </div>
               );
             })}
+          </div>
+        </section>
+
+        {/* Apple Health section */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-1 mb-2">Apple Health</h2>
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+            <div className="px-4 py-4">
+              <p className="text-sm text-gray-700 font-medium mb-1">Sleep sync via iOS Shortcut</p>
+              <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                Use an iOS Shortcut triggered by your Wake Up Alarm to automatically POST sleep data from Apple Health to TrainSync each morning.
+              </p>
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-2">
+                <code className="text-xs text-gray-700 break-all flex-1">
+                  POST {host}/api/health/sleep
+                </code>
+                <button
+                  onClick={() => navigator.clipboard.writeText(`${host}/api/health/sleep`)}
+                  className="text-xs text-indigo-500 hover:text-indigo-700 shrink-0 font-medium"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 leading-relaxed">
+                Set <code className="bg-gray-100 rounded px-1">HEALTH_SYNC_SECRET</code> in Vercel env vars and use it as the Authorization Bearer token in your Shortcut. See the{" "}
+                <a href="/readiness" className="text-indigo-500 hover:underline">Readiness page</a>{" "}
+                for full step-by-step Shortcut setup instructions.
+              </p>
+            </div>
           </div>
         </section>
 

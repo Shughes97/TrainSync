@@ -7,7 +7,7 @@
  */
 
 import { kv } from "@vercel/kv";
-import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile, FatigueSnapshot } from "@/types";
+import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile, FatigueSnapshot, SleepEntry } from "@/types";
 
 export { kv };
 
@@ -277,6 +277,20 @@ export async function setFatigueSnapshot(snapshot: FatigueSnapshot): Promise<voi
       kv.set(`fatigue:cardiovascular:${snapshot.date}`, snapshot.cardiovascular.score),
       kv.set(`fatigue:metabolic:${snapshot.date}`, snapshot.metabolic.score),
     ]);
+  } catch {
+    // silently ignore if KV unavailable
+  }
+}
+
+// ─── Sleep helpers ────────────────────────────────────────────────────────────
+
+export async function getSleepEntry(date: string): Promise<SleepEntry | null> {
+  return safeGet<SleepEntry>(`sleep:data:${date}`);
+}
+
+export async function setSleepEntry(entry: SleepEntry): Promise<void> {
+  try {
+    await kv.set(`sleep:data:${entry.date}`, entry);
   } catch {
     // silently ignore if KV unavailable
   }
