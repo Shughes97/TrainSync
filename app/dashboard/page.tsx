@@ -14,9 +14,9 @@ import { formatDay, getWeekStart } from "@/lib/scheduler";
 import { getCurrentPhase } from "@/lib/training-config";
 import type {
   CalEventsByDay,
+  FatigueSnapshot,
   Goal,
   PhaseContext,
-  ReadinessOutput,
   WorkoutProposal,
   WorkoutSession,
   WorkoutType,
@@ -114,7 +114,7 @@ export default function Dashboard() {
   const [editingSession, setEditingSession] = useState<WorkoutSession | null>(null);
   const [unschedulingId, setUnschedulingId] = useState<string | null>(null);
   const [confirmUnschedule, setConfirmUnschedule] = useState<ScheduledEvent | null>(null);
-  const [readiness, setReadiness] = useState<ReadinessOutput | null>(null);
+  const [readiness, setReadiness] = useState<FatigueSnapshot | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
 
   const currentWeekISO = useMemo(() => weekStartForOffset(weekOffset), [weekOffset]);

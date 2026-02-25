@@ -1,57 +1,82 @@
 "use client";
 
-import type { ReadinessOutput } from "@/types";
+import Link from "next/link";
+import type { FatigueSnapshot } from "@/types";
 
 interface ReadinessCardProps {
-  readiness: ReadinessOutput;
+  readiness: FatigueSnapshot;
 }
 
-function scoreColor(score: number): { ring: string; text: string; bg: string } {
-  if (score >= 70) return { ring: "border-green-200", text: "text-green-700", bg: "bg-green-50" };
-  if (score >= 40) return { ring: "border-amber-200", text: "text-amber-700", bg: "bg-amber-50" };
-  return { ring: "border-red-200", text: "text-red-700", bg: "bg-red-50" };
+function overallColor(score: number): { text: string; bar: string } {
+  if (score >= 80) return { text: "text-green-700", bar: "bg-green-500" };
+  if (score >= 60) return { text: "text-amber-600", bar: "bg-amber-500" };
+  if (score >= 40) return { text: "text-orange-600", bar: "bg-orange-500" };
+  return { text: "text-red-600", bar: "bg-red-500" };
 }
 
-function scoreLabel(score: number): string {
-  if (score >= 80) return "High";
-  if (score >= 60) return "Good";
-  if (score >= 40) return "Moderate";
-  if (score >= 20) return "Low";
-  return "Very Low";
+function systemColor(score: number): string {
+  if (score < 40) return "text-green-600";
+  if (score < 65) return "text-amber-600";
+  if (score < 85) return "text-orange-600";
+  return "text-red-600";
 }
 
 export default function ReadinessCard({ readiness }: ReadinessCardProps) {
-  const { score, lastSessionSummary, consecutiveNeuromuscularPenalty } = readiness;
-  const { ring, text, bg } = scoreColor(score);
+  const { overall, neuromuscular, cardiovascular, metabolic } = readiness;
+  const { text, bar } = overallColor(overall.score);
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${bg} ${ring}`}>
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-gray-900">Readiness</h2>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-medium ${text}`}>{scoreLabel(score)}</span>
-          <span className={`text-2xl font-bold tabular-nums ${text}`}>{score}</span>
-          <span className="text-xs text-gray-400">/100</span>
+    <Link href="/readiness" className="block">
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:border-indigo-200 transition-colors">
+        {/* Top row: emoji + overall + three system scores */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{overall.verdictEmoji}</span>
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Readiness</span>
+              <div className="flex items-baseline gap-1">
+                <span className={`text-2xl font-bold tabular-nums ${text}`}>{overall.score}</span>
+                <span className="text-xs text-gray-400">/100</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Three system scores */}
+          <div className="flex items-center gap-3">
+            <div className="text-center">
+              <p className="text-[10px] text-gray-400 mb-0.5">💪</p>
+              <p className={`text-sm font-semibold tabular-nums ${systemColor(neuromuscular.score)}`}>
+                {100 - neuromuscular.score}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-gray-400 mb-0.5">❤️</p>
+              <p className={`text-sm font-semibold tabular-nums ${systemColor(cardiovascular.score)}`}>
+                {100 - cardiovascular.score}
+              </p>
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] text-gray-400 mb-0.5">⚡</p>
+              <p className={`text-sm font-semibold tabular-nums ${systemColor(metabolic.score)}`}>
+                {100 - metabolic.score}
+              </p>
+            </div>
+          </div>
         </div>
+
+        {/* Progress bar */}
+        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-3">
+          <div
+            className={`h-full rounded-full transition-all ${bar}`}
+            style={{ width: `${overall.score}%` }}
+          />
+        </div>
+
+        {/* Recommendation */}
+        <p className="text-xs text-gray-600 leading-relaxed">{overall.recommendation}</p>
+
+        <p className="text-[10px] text-indigo-500 mt-2">Tap for details →</p>
       </div>
-
-      {/* Score bar */}
-      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-3">
-        <div
-          className={`h-full rounded-full transition-all ${
-            score >= 70 ? "bg-green-500" : score >= 40 ? "bg-amber-500" : "bg-red-500"
-          }`}
-          style={{ width: `${score}%` }}
-        />
-      </div>
-
-      <p className="text-xs text-gray-600 leading-relaxed">{lastSessionSummary}</p>
-
-      {consecutiveNeuromuscularPenalty && (
-        <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
-          ⚠ Two consecutive high-intensity strength sessions — prioritise recovery today.
-        </p>
-      )}
-    </div>
+    </Link>
   );
 }

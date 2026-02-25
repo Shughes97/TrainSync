@@ -22,6 +22,7 @@ function defaultProfile(): AthleteProfile {
     height: null,
     weight: null,
     maxHR: null,
+    restingHR: null,
     trainingAge: null,
     oneRepMaxes: { ...EMPTY_ONE_REP_MAXES },
     oneRepMaxHistory: [],

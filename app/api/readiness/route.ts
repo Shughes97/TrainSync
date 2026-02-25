@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { computeReadiness } from "@/lib/readiness";
+import { getFatigueSnapshot, setFatigueSnapshot } from "@/lib/kv";
+import { computeFatigueSnapshot } from "@/lib/fatigue";
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,8 +15,18 @@ export async function GET() {
   }
 
   try {
-    const readiness = await computeReadiness();
-    return NextResponse.json(readiness);
+    const today = isoDate(new Date());
+
+    // Serve cached snapshot if available
+    const cached = await getFatigueSnapshot(today);
+    if (cached) {
+      return NextResponse.json(cached);
+    }
+
+    // First request of the day — compute fresh
+    const snapshot = await computeFatigueSnapshot();
+    await setFatigueSnapshot(snapshot);
+    return NextResponse.json(snapshot);
   } catch (err) {
     console.error("[readiness] error:", err);
     return NextResponse.json({ error: String(err) }, { status: 500 });

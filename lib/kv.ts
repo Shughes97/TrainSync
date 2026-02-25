@@ -7,7 +7,7 @@
  */
 
 import { kv } from "@vercel/kv";
-import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile } from "@/types";
+import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile, FatigueSnapshot } from "@/types";
 
 export { kv };
 
@@ -253,6 +253,30 @@ export async function getAthleteProfile(): Promise<AthleteProfile | null> {
 export async function setAthleteProfile(profile: AthleteProfile): Promise<void> {
   try {
     await kv.set("athlete:profile", profile);
+  } catch {
+    // silently ignore if KV unavailable
+  }
+}
+
+// ─── Fatigue snapshot helpers ─────────────────────────────────────────────────
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+export async function getFatigueSnapshot(date?: string): Promise<FatigueSnapshot | null> {
+  const key = `fatigue:snapshot:${date ?? isoDate(new Date())}`;
+  return safeGet<FatigueSnapshot>(key);
+}
+
+export async function setFatigueSnapshot(snapshot: FatigueSnapshot): Promise<void> {
+  try {
+    await Promise.all([
+      kv.set(`fatigue:snapshot:${snapshot.date}`, snapshot),
+      kv.set(`fatigue:neuromuscular:${snapshot.date}`, snapshot.neuromuscular.score),
+      kv.set(`fatigue:cardiovascular:${snapshot.date}`, snapshot.cardiovascular.score),
+      kv.set(`fatigue:metabolic:${snapshot.date}`, snapshot.metabolic.score),
+    ]);
   } catch {
     // silently ignore if KV unavailable
   }

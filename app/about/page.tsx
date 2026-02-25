@@ -259,6 +259,20 @@ export default function AboutPage() {
               )}
             </div>
 
+            {/* Resting HR */}
+            <div className="flex items-center px-4 py-3">
+              <span className="text-sm text-gray-500 w-28 flex-shrink-0">Resting HR</span>
+              <input
+                type="number"
+                defaultValue={profile.restingHR ?? ""}
+                placeholder="—"
+                min={30} max={100}
+                onBlur={(e) => save({ restingHR: e.target.value ? parseInt(e.target.value) : null })}
+                className="flex-1 text-sm text-gray-900 bg-transparent focus:outline-none text-right"
+              />
+              <span className="text-sm text-gray-400 ml-1">bpm</span>
+            </div>
+
             {/* Training age */}
             <div className="flex items-start px-4 py-3">
               <span className="text-sm text-gray-500 w-28 flex-shrink-0 pt-0.5">Training Age</span>

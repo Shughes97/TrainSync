@@ -144,11 +144,31 @@ export interface EnrichedSession {
   newPersonalBests?: PersonalBest[];
 }
 
-export interface ReadinessOutput {
-  score: number;           // 0–100
-  atl: number;             // Acute Training Load (7-day rolling average, 0–10 scale)
-  lastSessionSummary: string;
-  consecutiveNeuromuscularPenalty: boolean;
+// ─── Fatigue + Readiness Types ────────────────────────────────────────────────
+
+export interface FatigueSystemState {
+  score: number;                       // 0–100, higher = more fatigued
+  freshness: number;                   // 100 - score
+  trend: "improving" | "stable" | "worsening";
+  lastHardSessionHours: number;
+  estimatedRecoveryHours: number;      // hours until score drops below 40
+  primaryDriver: string;
+  history: number[];                   // last 7 days scores, oldest first
+}
+
+export interface FatigueSnapshot {
+  date: string;                        // YYYY-MM-DD
+  neuromuscular: FatigueSystemState;
+  cardiovascular: FatigueSystemState;
+  metabolic: FatigueSystemState;
+  overall: {
+    score: number;                     // neuro×35% + cardio×35% + metabolic×30%
+    verdict: "ready" | "moderate" | "caution" | "recover";
+    verdictEmoji: "🟢" | "🟡" | "🟠" | "🔴";
+    recommendation: string;
+    sleepScore: number | null;
+    hrvScore: number | null;           // estimated from restingHR
+  };
 }
 
 // ─── Athlete Profile Types ─────────────────────────────────────────────────────
@@ -208,6 +228,7 @@ export interface AthleteProfile {
   weight: number | null;            // kg
   maxHR: number | null;
   maxHRSource?: "manual" | "strava_auto";
+  restingHR: number | null;
   trainingAge: "1-2 years" | "3-5 years" | "5+ years" | null;
   oneRepMaxes: OneRepMaxes;
   oneRepMaxHistory: OneRepMaxEntry[];

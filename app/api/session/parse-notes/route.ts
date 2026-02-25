@@ -159,5 +159,14 @@ Return ONLY valid JSON — no markdown:
     await setEnrichedSession(sessionDate, updatedSession);
   }
 
+  // Fire-and-forget fatigue recalculation so readiness updates immediately
+  try {
+    const { computeFatigueSnapshot } = await import("@/lib/fatigue");
+    const { setFatigueSnapshot } = await import("@/lib/kv");
+    computeFatigueSnapshot().then((snap) => setFatigueSnapshot(snap)).catch(() => {});
+  } catch {
+    // non-critical — don't block the response
+  }
+
   return NextResponse.json({ parsed, newPersonalBests });
 }
