@@ -462,7 +462,9 @@ export default function ReadinessPage() {
             </div>
 
             {/* Sleep card */}
-            <SleepCard sleep={snapshot.sleep} onLogSleep={handleLogSleep} />
+            {snapshot.sleep && (
+              <SleepCard sleep={snapshot.sleep} onLogSleep={handleLogSleep} />
+            )}
 
             {/* Three system cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -548,7 +550,7 @@ export default function ReadinessPage() {
             )}
 
             {/* Apple Health / iOS Shortcut setup — only shown when no sleep synced */}
-            {snapshot.sleep.lastNight === null && (
+            {snapshot.sleep?.lastNight == null && (
               <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-base">📱</span>
