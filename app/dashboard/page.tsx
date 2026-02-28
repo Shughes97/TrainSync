@@ -320,13 +320,13 @@ export default function DashboardPage() {
         ) : snapshot ? (
           <Link href="/readiness" className="grid grid-cols-3 gap-3">
             {[
-              { label: "Neuromuscular", icon: "💪", score: snapshot.neuromuscular.score },
-              { label: "Cardiovascular", icon: "❤️", score: snapshot.cardiovascular.score },
-              { label: "Metabolic",      icon: "⚡", score: snapshot.metabolic.score },
+              { label: "Neuromuscular", icon: "💪", score: snapshot.neuromuscular.score, freshness: snapshot.neuromuscular.freshness },
+              { label: "Cardiovascular", icon: "❤️", score: snapshot.cardiovascular.score, freshness: snapshot.cardiovascular.freshness },
+              { label: "Metabolic",      icon: "⚡", score: snapshot.metabolic.score,      freshness: snapshot.metabolic.freshness },
             ].map((sys) => (
               <div key={sys.label} className={`rounded-2xl p-3 text-center ${chipStyle(sys.score)}`}>
                 <p className="text-xs opacity-70 mb-1">{sys.icon}</p>
-                <p className="text-lg font-bold leading-none">{sys.score}</p>
+                <p className="text-lg font-bold leading-none">{sys.freshness}</p>
                 <p className="text-xs opacity-70 mt-1">{sys.label.slice(0, 6)}</p>
               </div>
             ))}
@@ -499,7 +499,9 @@ export default function DashboardPage() {
               {(() => {
                 const todayRHR = data?.rhrLast7?.[6] ?? data?.rhrLast7?.[5] ?? null;
                 const avg = data?.rhrAvg30Bpm;
-                const bpm = todayRHR?.bpm ?? null;
+                // Fall back to static profile value if no daily entries yet
+                const bpm = todayRHR?.bpm ?? data?.profile?.restingHR ?? null;
+                const isProfileFallback = todayRHR == null && bpm != null;
                 const compLabel = bpm != null && avg != null
                   ? bpm <= avg * 1.03
                     ? { text: "↓ normal", cls: "text-green-400" }
@@ -518,12 +520,17 @@ export default function DashboardPage() {
                     {compLabel && (
                       <p className={`text-xs mt-0.5 ${compLabel.cls}`}>{compLabel.text}</p>
                     )}
+                    {isProfileFallback && (
+                      <p className="text-zinc-600 text-xs mt-0.5">from profile</p>
+                    )}
                     {avg != null && (
                       <p className="text-zinc-600 text-xs mt-0.5">{avg} bpm avg/30d</p>
                     )}
-                    <div className="mt-2">
-                      <BarSparkline values={rhrValues} maxVal={maxBpm} color="#F87171" />
-                    </div>
+                    {rhrValues.some((v) => v !== null) && (
+                      <div className="mt-2">
+                        <BarSparkline values={rhrValues} maxVal={maxBpm} color="#F87171" />
+                      </div>
+                    )}
                   </>
                 );
               })()}
