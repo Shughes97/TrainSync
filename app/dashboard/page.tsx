@@ -338,7 +338,22 @@ export default function DashboardPage() {
             ?.filter((s) => s.day >= todayISO)
             .sort((a, b) => a.day.localeCompare(b.day) || a.startTime.localeCompare(b.startTime))[0] ?? null;
 
-          if (!nextSession) return null;
+          if (!nextSession) return (
+            <Link href="/schedule" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
+              <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                Next Session
+              </h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">📅</span>
+                  <div>
+                    <p className="text-white font-semibold text-base">Nothing scheduled</p>
+                    <p className="text-zinc-500 text-xs mt-0.5">Plan next week →</p>
+                  </div>
+                </div>
+              </div>
+            </Link>
+          );
 
           const cfg = SESSION_CONFIG[nextSession.type] ?? { icon: "💪", label: nextSession.type, isHard: false };
           const isToday = nextSession.day === todayISO;
