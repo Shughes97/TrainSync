@@ -449,6 +449,18 @@ export default function DashboardPage() {
                 <Line dataKey="metabolic"      stroke="#A78BFA" dot={false} strokeWidth={1.5} name="Metabolic" />
               </LineChart>
             </ResponsiveContainer>
+            <div className="flex items-center gap-4 mt-2">
+              {[
+                { color: "#F97316", label: "Neuromuscular" },
+                { color: "#60A5FA", label: "Cardiovascular" },
+                { color: "#A78BFA", label: "Metabolic" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-1.5">
+                  <span className="w-3 h-0.5 rounded-full inline-block" style={{ backgroundColor: item.color }} />
+                  <span className="text-zinc-500 text-xs">{item.label}</span>
+                </div>
+              ))}
+            </div>
           </Link>
         ) : null}
 
