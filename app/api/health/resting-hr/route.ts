@@ -1,6 +1,6 @@
 /**
  * POST /api/health/resting-hr — receives resting heart rate from iOS Shortcut or manual save.
- * GET  /api/health/resting-hr — returns current restingHR from athlete profile.
+ * GET  /api/health/resting-hr — returns today's RestingHREntry + 7-day history.
  *
  * POST auth: Bearer ${HEALTH_SYNC_SECRET} (for iOS Shortcut) OR valid NextAuth session.
  * GET  auth: valid NextAuth session only.
@@ -11,7 +11,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getAthleteProfile, setAthleteProfile } from "@/lib/kv";
+import { getAthleteProfile, setAthleteProfile, setRestingHREntry } from "@/lib/kv";
+import type { RestingHREntry } from "@/types";
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 function isAuthorized(req: NextRequest, sessionExists: boolean): boolean {
   const secret = process.env.HEALTH_SYNC_SECRET;
@@ -28,7 +33,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { bpm?: unknown };
+  let body: { bpm?: unknown; date?: string; source?: string };
   try {
     body = await req.json();
   } catch {
@@ -40,15 +45,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "bpm must be a number between 30 and 120" }, { status: 400 });
   }
 
+  const date = body.date ?? isoDate(new Date());
+  const source = body.source === "manual" ? "manual" : "shortcut";
+
+  const entry: RestingHREntry = {
+    date,
+    bpm,
+    source,
+    createdAt: new Date().toISOString(),
+  };
+
+  // Store daily entry for history tracking
+  await setRestingHREntry(entry);
+
+  // Also update athlete profile so existing HRV calc stays current
   const existing = await getAthleteProfile();
-  if (!existing) {
-    return NextResponse.json({ error: "Athlete profile not found" }, { status: 404 });
+  if (existing) {
+    await setAthleteProfile({ ...existing, restingHR: bpm });
   }
 
-  const updated = { ...existing, restingHR: bpm };
-  await setAthleteProfile(updated);
-
-  // Fire-and-forget fatigue snapshot refresh so HRV score updates immediately
+  // Fire-and-forget fatigue snapshot refresh
   try {
     const { computeFatigueSnapshot } = await import("@/lib/fatigue");
     const { setFatigueSnapshot } = await import("@/lib/kv");
@@ -57,7 +73,7 @@ export async function POST(req: NextRequest) {
     // non-critical
   }
 
-  return NextResponse.json({ ok: true, restingHR: bpm });
+  return NextResponse.json({ ok: true, entry });
 }
 
 export async function GET(req: NextRequest) {
@@ -66,9 +82,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // suppress unused warning
   void req;
 
-  const profile = await getAthleteProfile();
-  return NextResponse.json({ restingHR: profile?.restingHR ?? null });
+  const { computeRestingHRState } = await import("@/lib/restingHR");
+  const state = await computeRestingHRState();
+  return NextResponse.json(state);
 }

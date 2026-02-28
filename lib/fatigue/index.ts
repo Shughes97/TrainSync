@@ -11,7 +11,8 @@ import { computeNeuromuscularFatigue } from "./neuromuscular";
 import { computeCardiovascularFatigue } from "./cardiovascular";
 import { computeMetabolicFatigue } from "./metabolic";
 import { computeSleepState } from "@/lib/sleep";
-import type { FatigueSnapshot, SleepState } from "@/types";
+import { computeRestingHRState } from "@/lib/restingHR";
+import type { FatigueSnapshot, SleepState, RestingHRState } from "@/types";
 
 export type { FatigueSnapshot };
 
@@ -84,7 +85,7 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
   const dateStr = isoDate(today);
 
   // Load data in parallel
-  const [sessions, activities, athleteProfile, neuroHistory, cardioHistory, metabolicHistory, sleepState] =
+  const [sessions, activities, athleteProfile, neuroHistory, cardioHistory, metabolicHistory, sleepState, restingHRState] =
     await Promise.all([
       getRecentEnrichedSessions(14),
       getActivities(),
@@ -93,6 +94,7 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
       loadHistory("cardiovascular"),
       loadHistory("metabolic"),
       computeSleepState(today),
+      computeRestingHRState(today),
     ]) as [
       Awaited<ReturnType<typeof getRecentEnrichedSessions>>,
       Awaited<ReturnType<typeof getActivities>>,
@@ -100,7 +102,8 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
       number[],
       number[],
       number[],
-      SleepState
+      SleepState,
+      RestingHRState
     ];
 
   // Compute metabolic first (needed for neuromuscular half-life extension)
@@ -150,11 +153,11 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
     sleepState.overallSleepScore
   );
 
-  // HRV estimate from resting HR (lower resting HR = higher HRV proxy)
-  const restingHR = athleteProfile?.restingHR;
+  // HRV proxy — prefer today's daily reading, fall back to static athlete profile
+  const effectiveRestingHR = restingHRState.todayBpm ?? athleteProfile?.restingHR ?? null;
   const hrvScore =
-    restingHR != null
-      ? Math.round(Math.max(0, Math.min(100, (80 - restingHR) * 2.5)))
+    effectiveRestingHR != null
+      ? Math.round(Math.max(0, Math.min(100, (80 - effectiveRestingHR) * 2.5)))
       : null;
 
   return {
@@ -163,6 +166,7 @@ export async function computeFatigueSnapshot(now?: Date): Promise<FatigueSnapsho
     cardiovascular: cardiovascularState,
     metabolic: metabolicState,
     sleep: sleepState,
+    restingHR: restingHRState,
     overall: {
       score: readinessScore,
       verdict,

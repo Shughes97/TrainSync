@@ -180,12 +180,28 @@ export interface SleepState {
   history: (number | null)[];          // last 7 nights hours, oldest first
 }
 
+export interface RestingHREntry {
+  date: string;           // YYYY-MM-DD
+  bpm: number;
+  source: "shortcut" | "manual";
+  createdAt: string;
+}
+
+export interface RestingHRState {
+  today: RestingHREntry | null;
+  todayBpm: number | null;
+  rolling7DayAvgBpm: number | null;
+  trend: "improving" | "stable" | "worsening";
+  history: (number | null)[];   // last 7 days bpm, oldest first
+}
+
 export interface FatigueSnapshot {
   date: string;                        // YYYY-MM-DD
   neuromuscular: FatigueSystemState;
   cardiovascular: FatigueSystemState;
   metabolic: FatigueSystemState;
   sleep: SleepState;
+  restingHR: RestingHRState;
   overall: {
     score: number;                     // weighted across all systems
     verdict: "ready" | "moderate" | "caution" | "recover";

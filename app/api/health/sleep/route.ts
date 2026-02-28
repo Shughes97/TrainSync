@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const hours = body.hours;
-  if (typeof hours !== "number" || hours < 0 || hours > 24) {
+  const hours = typeof body.hours === "string" ? parseFloat(body.hours) : body.hours;
+  if (typeof hours !== "number" || isNaN(hours) || hours < 0 || hours > 24) {
     return NextResponse.json({ error: "hours must be a number between 0 and 24" }, { status: 400 });
   }
 

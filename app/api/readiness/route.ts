@@ -17,9 +17,9 @@ export async function GET() {
   try {
     const today = isoDate(new Date());
 
-    // Serve cached snapshot if available and schema is current (has sleep field)
+    // Serve cached snapshot if schema is current (has both sleep and restingHR fields)
     const cached = await getFatigueSnapshot(today);
-    if (cached && cached.sleep) {
+    if (cached && cached.sleep && cached.restingHR) {
       return NextResponse.json(cached);
     }
 

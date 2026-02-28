@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import BottomNav from "@/components/BottomNav";
-import type { FatigueSnapshot, FatigueSystemState, SleepState } from "@/types";
+import type { FatigueSnapshot, FatigueSystemState, SleepState, RestingHRState } from "@/types";
 import type { StoredActivity } from "@/lib/kv";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -287,6 +287,58 @@ function SleepCard({
   );
 }
 
+// ─── Resting HR card ──────────────────────────────────────────────────────────
+
+function RestingHRCard({ restingHR }: { restingHR: RestingHRState }) {
+  const sparkData = restingHR.history.map((v) => v ?? 0);
+  const hasData = sparkData.some((v) => v > 0);
+
+  function trendLabel(trend: RestingHRState["trend"]) {
+    if (trend === "improving") return { text: "↓ Dropping", cls: "text-green-600" };
+    if (trend === "worsening") return { text: "↑ Rising", cls: "text-red-500" };
+    return { text: "→ Stable", cls: "text-gray-400" };
+  }
+
+  const tl = trendLabel(restingHR.trend);
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">❤️</span>
+          <span className="text-sm font-semibold text-gray-900">Resting HR</span>
+          {hasData && (
+            <span className={`text-xs font-medium ${tl.cls}`}>{tl.text}</span>
+          )}
+        </div>
+        {hasData && <Sparkline data={sparkData} color="#ef4444" />}
+      </div>
+
+      <div className="flex items-end gap-4">
+        <div>
+          <span className="text-3xl font-bold tabular-nums text-gray-900">
+            {restingHR.todayBpm ?? "–"}
+          </span>
+          <span className="text-sm text-gray-400 ml-1">bpm today</span>
+        </div>
+        {restingHR.rolling7DayAvgBpm != null && (
+          <div className="pb-1">
+            <span className="text-sm text-gray-500">
+              7-day avg: <span className="font-medium text-gray-700">{restingHR.rolling7DayAvgBpm} bpm</span>
+            </span>
+          </div>
+        )}
+      </div>
+
+      {!hasData && (
+        <p className="text-xs text-gray-400 mt-2">
+          No data yet — iOS Shortcut will populate this each morning.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── CTL/ATL/TSB chart ────────────────────────────────────────────────────────
 
 interface PmcPoint {
@@ -464,6 +516,11 @@ export default function ReadinessPage() {
             {/* Sleep card */}
             {snapshot.sleep && (
               <SleepCard sleep={snapshot.sleep} onLogSleep={handleLogSleep} />
+            )}
+
+            {/* Resting HR card */}
+            {snapshot.restingHR && (
+              <RestingHRCard restingHR={snapshot.restingHR} />
             )}
 
             {/* Three system cards */}

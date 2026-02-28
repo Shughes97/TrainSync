@@ -7,7 +7,7 @@
  */
 
 import { kv } from "@vercel/kv";
-import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile, FatigueSnapshot, SleepEntry } from "@/types";
+import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile, FatigueSnapshot, SleepEntry, RestingHREntry } from "@/types";
 
 export { kv };
 
@@ -291,6 +291,20 @@ export async function getSleepEntry(date: string): Promise<SleepEntry | null> {
 export async function setSleepEntry(entry: SleepEntry): Promise<void> {
   try {
     await kv.set(`sleep:data:${entry.date}`, entry);
+  } catch {
+    // silently ignore if KV unavailable
+  }
+}
+
+// ─── Resting HR helpers ───────────────────────────────────────────────────────
+
+export async function getRestingHREntry(date: string): Promise<RestingHREntry | null> {
+  return safeGet<RestingHREntry>(`health:resting-hr:${date}`);
+}
+
+export async function setRestingHREntry(entry: RestingHREntry): Promise<void> {
+  try {
+    await kv.set(`health:resting-hr:${entry.date}`, entry);
   } catch {
     // silently ignore if KV unavailable
   }
