@@ -188,7 +188,6 @@ export default function DashboardPage() {
     : null;
 
   // Today's sessions and activities
-  const todaySessions = data?.schedule?.sessions?.filter((s) => s.day === todayISO) ?? [];
   const todayActivities = (data?.activities ?? []).filter((a) =>
     a.start_date.startsWith(todayISO)
   );
@@ -333,58 +332,48 @@ export default function DashboardPage() {
           </Link>
         ) : null}
 
-        {/* ── Section 4: Today's Plan ───────────────────────────────────────── */}
-        {!loading && (
-          <div className="bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
-            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
-              Today&apos;s Plan
-            </h2>
-            {todaySessions.length === 0 ? (
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">🛋️</span>
-                <div>
-                  <p className="text-white font-medium">Rest Day</p>
-                  <span className="text-xs bg-green-900/40 text-green-400 px-2 py-0.5 rounded-full">
-                    ✓ Recovery
-                  </span>
+        {/* ── Section 4: Next Session ───────────────────────────────────────── */}
+        {!loading && (() => {
+          const nextSession = data?.schedule?.sessions
+            ?.filter((s) => s.day >= todayISO)
+            .sort((a, b) => a.day.localeCompare(b.day) || a.startTime.localeCompare(b.startTime))[0] ?? null;
+
+          if (!nextSession) return null;
+
+          const cfg = SESSION_CONFIG[nextSession.type] ?? { icon: "💪", label: nextSession.type, isHard: false };
+          const isToday = nextSession.day === todayISO;
+          const sessionDate = new Date(nextSession.day + "T12:00:00");
+          const dayLabel = isToday
+            ? "Today"
+            : sessionDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+
+          const isDone = isToday && todayActivities.length > 0;
+          const showWarning = !isDone && cfg.isHard && snapshot?.overall.verdict === "recover";
+
+          return (
+            <Link href="/schedule" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
+              <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                Next Session
+              </h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{cfg.icon}</span>
+                  <div>
+                    <p className="text-white font-semibold text-base">{cfg.label}</p>
+                    <p className="text-zinc-500 text-xs mt-0.5">{dayLabel} · {nextSession.startTime}</p>
+                  </div>
                 </div>
+                {isDone ? (
+                  <span className="text-xs bg-green-900/40 text-green-400 px-2.5 py-1 rounded-full">✓ Done</span>
+                ) : showWarning ? (
+                  <span className="text-xs bg-red-900/40 text-red-400 px-2.5 py-1 rounded-full">⚠️ Reschedule?</span>
+                ) : (
+                  <span className="text-xs bg-[#2A2A2A] text-zinc-500 px-2.5 py-1 rounded-full">Scheduled</span>
+                )}
               </div>
-            ) : (
-              <div className="space-y-3">
-                {todaySessions.map((s) => {
-                  const cfg = SESSION_CONFIG[s.type] ?? { icon: "💪", label: s.type, isHard: false };
-                  const done = todayActivities.length > 0;
-                  const showWarning =
-                    !done &&
-                    cfg.isHard &&
-                    snapshot?.overall.verdict === "recover";
-                  return (
-                    <div key={s.id} className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{cfg.icon}</span>
-                        <div>
-                          <p className="text-white font-medium">{cfg.label}</p>
-                          <p className="text-zinc-500 text-xs">{s.startTime}</p>
-                        </div>
-                      </div>
-                      {done ? (
-                        <span className="text-xs bg-green-900/40 text-green-400 px-2 py-0.5 rounded-full">
-                          ✓ Done
-                        </span>
-                      ) : showWarning ? (
-                        <Link href="/schedule">
-                          <span className="text-xs bg-red-900/40 text-red-400 px-2 py-0.5 rounded-full">
-                            ⚠️ Reschedule?
-                          </span>
-                        </Link>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+            </Link>
+          );
+        })()}
 
         {/* ── Section 5: Week at a Glance ───────────────────────────────────── */}
         {!loading && (
