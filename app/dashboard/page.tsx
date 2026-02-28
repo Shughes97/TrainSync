@@ -438,14 +438,22 @@ export default function DashboardPage() {
                 <Line dataKey="metabolic"      stroke="#A78BFA" dot={false} strokeWidth={1.5} name="Metabolic" />
               </LineChart>
             </ResponsiveContainer>
-            <div className="flex items-center gap-4 mt-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2">
               {[
-                { color: "#F97316", label: "Neuromuscular" },
-                { color: "#60A5FA", label: "Cardiovascular" },
-                { color: "#A78BFA", label: "Metabolic" },
+                { color: "#F97316", label: "Neuromuscular", dashed: false },
+                { color: "#60A5FA", label: "Cardiovascular", dashed: false },
+                { color: "#A78BFA", label: "Metabolic",      dashed: false },
+                { color: "#F59E0B", label: "Caution (65)",   dashed: true  },
+                { color: "#EF4444", label: "High risk (85)", dashed: true  },
               ].map((item) => (
                 <div key={item.label} className="flex items-center gap-1.5">
-                  <span className="w-3 h-0.5 rounded-full inline-block" style={{ backgroundColor: item.color }} />
+                  {item.dashed ? (
+                    <svg width="14" height="6">
+                      <line x1="0" y1="3" x2="14" y2="3" stroke={item.color} strokeWidth="1.5" strokeDasharray="3 2" />
+                    </svg>
+                  ) : (
+                    <span className="w-3 h-0.5 rounded-full inline-block" style={{ backgroundColor: item.color }} />
+                  )}
                   <span className="text-zinc-500 text-xs">{item.label}</span>
                 </div>
               ))}
