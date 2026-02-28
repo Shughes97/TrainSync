@@ -569,7 +569,13 @@ export default function DashboardPage() {
             <div className="flex gap-5">
               {data.lastSession.enrichedIntensity != null && (
                 <div>
-                  <p className="text-zinc-500 text-xs">Intensity</p>
+                  <p className="text-zinc-500 text-xs">
+                    {data.lastSession.dominantStressType === "cardiovascular"
+                      ? "Effort"
+                      : data.lastSession.dominantStressType === "neuromuscular"
+                      ? "Load"
+                      : "Intensity"}
+                  </p>
                   <p className="text-white font-bold">{data.lastSession.enrichedIntensity}/10</p>
                 </div>
               )}
