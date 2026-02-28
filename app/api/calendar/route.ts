@@ -73,6 +73,14 @@ export async function POST(req: NextRequest) {
     };
     await kv.set("schedule:current_week", weekSchedule);
 
+    // Bust dashboard cache so Next Session card reflects new schedule immediately
+    try {
+      const today = new Date();
+      const dd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const hh = today.getHours().toString().padStart(2, "0");
+      await kv.del(`dashboard:cache:${dd}:${hh}`);
+    } catch { /* non-critical */ }
+
     // Cache Google tokens in KV so background cron jobs can use them
     await storeGoogleTokens(
       session.accessToken,

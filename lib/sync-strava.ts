@@ -96,6 +96,14 @@ export async function runStravaSync(accessToken: string): Promise<StravaSyncResu
       ...weekSchedule,
       sessions: updatedSessions,
     });
+
+    // Bust dashboard cache so completed sessions are reflected immediately
+    try {
+      const today = new Date();
+      const dd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const hh = today.getHours().toString().padStart(2, "0");
+      await kv.del(`dashboard:cache:${dd}:${hh}`);
+    } catch { /* non-critical */ }
   }
 
   // 4. Compute rolling 7-day training load
