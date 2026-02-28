@@ -1,676 +1,612 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import WorkoutCard from "@/components/WorkoutCard";
-import WeekFocusCard from "@/components/WeekFocusCard";
-import SyncStatusCard from "@/components/SyncStatusCard";
-import ReadinessCard from "@/components/ReadinessCard";
-import TimePickerModal, { type WeekDay } from "@/components/TimePickerModal";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  LineChart,
+  Line,
+  ReferenceLine,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+} from "recharts";
 import BottomNav from "@/components/BottomNav";
-import Image from "next/image";
-import { formatDay, getWeekStart } from "@/lib/scheduler";
-import { getCurrentPhase } from "@/lib/training-config";
-import type {
-  CalEventsByDay,
-  FatigueSnapshot,
-  Goal,
-  PhaseContext,
-  WorkoutProposal,
-  WorkoutSession,
-  WorkoutType,
-} from "@/types";
+import type { FatigueSnapshot, SleepEntry, RestingHREntry, EnrichedSession, AthleteProfile, Goal } from "@/types";
+import type { StoredActivity, StoredSession } from "@/lib/kv";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ScheduledEvent {
-  id: string;
-  summary: string;
-  start: string;
-  end: string;
+interface FatiguePoint {
+  date: string;
+  label: string;
+  neuromuscular: number;
+  cardiovascular: number;
+  metabolic: number;
 }
 
-type PageState = "loading" | "ready" | "scheduling" | "error";
+interface DashboardData {
+  snapshot: FatigueSnapshot | null;
+  schedule: { sessions: StoredSession[] } | null;
+  sleepLast7: (SleepEntry | null)[];
+  sleepAvg30Hours: number | null;
+  rhrLast7: (RestingHREntry | null)[];
+  rhrAvg30Bpm: number | null;
+  lastSession: EnrichedSession | null;
+  activities: StoredActivity[];
+  fatigueHistory: FatiguePoint[];
+  profile: AthleteProfile | null;
+  cachedAt: string;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const workoutConfig: Record<
-  WorkoutType,
-  { icon: string; color: string; bg: string; border: string }
-> = {
-  Crossfit: { icon: "🏋️", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
-  Strength: { icon: "💪", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
-  Run:      { icon: "🏃", color: "text-rose-600",   bg: "bg-rose-50",   border: "border-rose-200"   },
-  Bike:     { icon: "🚴", color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200"   },
+const SESSION_CONFIG: Record<string, { icon: string; label: string; isHard: boolean }> = {
+  Crossfit:  { icon: "🏋️", label: "CrossFit",  isHard: true  },
+  Strength:  { icon: "💪", label: "Strength",  isHard: true  },
+  Run:       { icon: "🏃", label: "Run",        isHard: false },
+  Bike:      { icon: "🚴", label: "Bike",       isHard: false },
 };
 
-// Fallback weekly target when outside the 17-week training window
-const DEFAULT_TARGET: Array<{ type: WorkoutType; isHard: boolean }> = [
-  { type: "Crossfit", isHard: true },
-  { type: "Crossfit", isHard: true },
-  { type: "Strength", isHard: false },
-  { type: "Run",      isHard: false },
-  { type: "Bike",     isHard: false },
-];
-
-// Google Calendar event title lookup (mirrors google-calendar.ts)
-const EVENT_TITLES: Record<WorkoutType, string> = {
-  Crossfit: "🏋️ CrossFit Session",
-  Strength: "💪 Strength Training",
-  Run:      "🏃 Run",
-  Bike:     "🚴 Bike Ride",
-};
+const CIRCUMFERENCE = 2 * Math.PI * 54; // r=54 → ≈339.29
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function weekStartForOffset(offset: number): string {
-  const base = getWeekStart();
-  base.setDate(base.getDate() + offset * 7);
-  return base.toISOString().split("T")[0];
+function verdictColor(verdict: string): string {
+  switch (verdict) {
+    case "ready":    return "#00E5A0";
+    case "moderate": return "#F59E0B";
+    case "caution":  return "#F97316";
+    case "recover":  return "#EF4444";
+    default:         return "#6B7280";
+  }
 }
 
-function weekLabel(mondayISO: string): string {
-  const monday = new Date(mondayISO + "T12:00:00");
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  return `${fmt(monday)} – ${fmt(sunday)}`;
+function chipStyle(score: number): string {
+  if (score < 40) return "bg-green-900/40 text-green-400 border border-green-800/40";
+  if (score < 65) return "bg-amber-900/40 text-amber-400 border border-amber-800/40";
+  if (score < 85) return "bg-orange-900/40 text-orange-400 border border-orange-800/40";
+  return "bg-red-900/40 text-red-400 border border-red-800/40";
 }
 
-function parseWorkoutType(summary: string): WorkoutType | null {
-  if (summary.includes("CrossFit")) return "Crossfit";
-  if (summary.includes("Strength")) return "Strength";
-  if (summary.includes("Run")) return "Run";
-  if (summary.includes("Bike")) return "Bike";
-  return null;
+function fatigueDotColor(avg: number): string {
+  if (avg < 40) return "#00E5A0";
+  if (avg < 65) return "#F59E0B";
+  if (avg < 85) return "#F97316";
+  return "#EF4444";
 }
 
-function formatEventTime(iso: string): string {
-  const d = new Date(iso);
-  const h = d.getHours();
-  const m = d.getMinutes();
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+function minsToHM(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
 
-export default function Dashboard() {
-  const { data: session, status } = useSession();
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function ReadinessGauge({ score, color }: { score: number; color: string }) {
+  const offset = CIRCUMFERENCE * (1 - score / 100);
+  return (
+    <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
+      <circle cx="60" cy="60" r="54" fill="none" stroke="#2A2A2A" strokeWidth="8" />
+      <circle
+        cx="60" cy="60" r="54" fill="none"
+        stroke={color} strokeWidth="8" strokeLinecap="round"
+        strokeDasharray={CIRCUMFERENCE}
+        strokeDashoffset={offset}
+        style={{ transition: "stroke-dashoffset 0.5s ease" }}
+      />
+    </svg>
+  );
+}
+
+function BarSparkline({
+  values,
+  maxVal,
+  color,
+}: {
+  values: (number | null)[];
+  maxVal: number;
+  color: string;
+}) {
+  const W = 10, GAP = 2;
+  const totalW = values.length * (W + GAP) - GAP;
+  return (
+    <svg width={totalW} height={28}>
+      {values.map((v, i) => {
+        const h = v != null ? Math.max(2, (v / maxVal) * 28) : 2;
+        return (
+          <rect
+            key={i}
+            x={i * (W + GAP)}
+            y={28 - h}
+            width={W}
+            height={h}
+            rx={2}
+            fill={v != null ? color : "#27272A"}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
+function Skeleton({ h = "h-24" }: { h?: string }) {
+  return <div className={`bg-[#2A2A2A] animate-pulse rounded-2xl ${h}`} />;
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function DashboardPage() {
+  const { status } = useSession();
   const router = useRouter();
 
-  const [weekOffset, setWeekOffset] = useState(0);
-  const [proposals, setProposals] = useState<WorkoutProposal[]>([]);
-  const [scheduledEvents, setScheduledEvents] = useState<ScheduledEvent[]>([]);
-  const [completedEventIds, setCompletedEventIds] = useState<Set<string>>(new Set());
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const [calEventsByDay, setCalEventsByDay] = useState<CalEventsByDay>({});
-  const [pageState, setPageState] = useState<PageState>("loading");
-  const [scheduleError, setScheduleError] = useState<string | null>(null);
-  const [justScheduledCount, setJustScheduledCount] = useState(0);
-  const [editingSession, setEditingSession] = useState<WorkoutSession | null>(null);
-  const [unschedulingId, setUnschedulingId] = useState<string | null>(null);
-  const [confirmUnschedule, setConfirmUnschedule] = useState<ScheduledEvent | null>(null);
-  const [readiness, setReadiness] = useState<FatigueSnapshot | null>(null);
-  const [goals, setGoals] = useState<Goal[]>([]);
-
-  const currentWeekISO = useMemo(() => weekStartForOffset(weekOffset), [weekOffset]);
-
-  const phaseContext: PhaseContext | null = useMemo(
-    () => getCurrentPhase(new Date(currentWeekISO + "T12:00:00")),
-    [currentWeekISO]
-  );
-
-  // The target for the viewed week (phase-specific or default)
-  const weeklyTarget = phaseContext?.phase.weeklyPlan ?? DEFAULT_TARGET;
-
-  // Build Mon–Sun day buttons for the date picker (past days disabled)
-  const weekDays = useMemo((): WeekDay[] => {
-    const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const todayISO = new Date().toISOString().split("T")[0];
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(currentWeekISO + "T12:00:00");
-      d.setDate(d.getDate() + i);
-      const iso = d.toISOString().split("T")[0];
-      return {
-        iso,
-        label: DAY_LABELS[d.getDay()],
-        date: d.getDate(),
-        disabled: iso < todayISO,
-      };
-    });
-  }, [currentWeekISO]);
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") router.push("/");
   }, [status, router]);
 
-  const loadSchedule = useCallback(async (weekISO: string) => {
-    setPageState("loading");
-    setScheduleError(null);
-    setProposals([]);
-    setScheduledEvents([]);
-    setCompletedEventIds(new Set());
-    setJustScheduledCount(0);
-    try {
-      const res = await fetch(`/api/schedule?weekStart=${weekISO}`);
-      if (!res.ok) throw new Error("Failed to load schedule");
-      const data = await res.json();
-      setProposals(data.proposals ?? []);
-      setWarnings(data.warnings ?? []);
-      setCalEventsByDay(data.calendarEventsByDay ?? {});
-      setScheduledEvents(data.scheduledEvents ?? []);
-      setCompletedEventIds(new Set(data.completedEventIds ?? []));
-      setPageState("ready");
-    } catch (err) {
-      console.error(err);
-      setPageState("error");
-      setScheduleError("Could not load your schedule. Check your connection and try again.");
-    }
-  }, []);
-
-  useEffect(() => {
-    if (status === "authenticated") loadSchedule(currentWeekISO);
-  }, [status, currentWeekISO, loadSchedule]);
-
-  // Fetch readiness and athlete profile once on mount
   useEffect(() => {
     if (status !== "authenticated") return;
-    fetch("/api/readiness")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => { if (data) setReadiness(data); })
-      .catch(() => {});
-    fetch("/api/athlete")
-      .then((r) => r.ok ? r.json() : null)
-      .then((profile) => { if (profile?.goals) setGoals(profile.goals); })
-      .catch(() => {});
-  }, [status]);
-
-  // ─── Proposal actions ────────────────────────────────────────────────────────
-
-  const handleAccept = (id: string) => {
-    setProposals((prev) =>
-      prev.map((p) => (p.session.id === id ? { ...p, status: "accepted" } : p))
-    );
-  };
-
-  const handleSkip = (id: string) => {
-    setProposals((prev) =>
-      prev.map((p) => (p.session.id === id ? { ...p, status: "skipped" } : p))
-    );
-  };
-
-  const handleChangeTime = (id: string) => {
-    const proposal = proposals.find((p) => p.session.id === id);
-    if (proposal) setEditingSession(proposal.session);
-  };
-
-  const handleTimeConfirm = (id: string, startTime: string, day?: string) => {
-    const [h, m] = startTime.split(":").map(Number);
-    const endHour = h + 1;
-    const endTime = `${endHour.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
-    setProposals((prev) =>
-      prev.map((p) => {
-        if (p.session.id !== id) return p;
-        const dayStr = day ?? p.session.day;
-        return {
-          ...p,
-          status: "accepted",
-          session: {
-            ...p.session,
-            day: dayStr,
-            startTime,
-            endTime,
-            startISO: `${dayStr}T${startTime}:00`,
-            endISO: `${dayStr}T${endTime}:00`,
-            window: h < 12 ? "morning" : "evening",
-          },
-        };
+    setLoading(true);
+    const url = refreshKey > 0 ? `/api/dashboard?bust=${refreshKey}` : "/api/dashboard";
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        setData(d);
+        setLastUpdated(new Date());
+        setLoading(false);
       })
-    );
-    setEditingSession(null);
-  };
+      .catch(() => setLoading(false));
+  }, [status, refreshKey]);
 
-  const handleAcceptAll = () => {
-    setProposals((prev) =>
-      prev.map((p) => (p.status === "pending" ? { ...p, status: "accepted" } : p))
-    );
-  };
+  const today = new Date();
+  const todayISO = isoDate(today);
 
-  // ─── Schedule to calendar ────────────────────────────────────────────────────
+  // Nearest upcoming goal
+  const nearestGoal: Goal | null =
+    data?.profile?.goals
+      ?.filter((g) => g.date > todayISO)
+      .sort((a, b) => a.date.localeCompare(b.date))[0] ?? null;
 
-  const handleScheduleWeek = async () => {
-    const toCreate = proposals.filter((p) => p.status === "accepted");
-    if (toCreate.length === 0) return;
+  const daysUntil = nearestGoal
+    ? Math.ceil(
+        (new Date(nearestGoal.date + "T00:00:00").getTime() -
+          new Date(todayISO + "T00:00:00").getTime()) /
+          (1000 * 60 * 60 * 24)
+      )
+    : null;
 
-    setPageState("scheduling");
-    setScheduleError(null);
+  // Today's sessions and activities
+  const todaySessions = data?.schedule?.sessions?.filter((s) => s.day === todayISO) ?? [];
+  const todayActivities = (data?.activities ?? []).filter((a) =>
+    a.start_date.startsWith(todayISO)
+  );
 
-    try {
-      const res = await fetch("/api/calendar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessions: toCreate.map((p) => p.session) }),
-      });
-      if (!res.ok) throw new Error("Failed to create events");
-      const data = await res.json();
-      const created: Array<{ id: string; eventId: string }> = data.created ?? [];
+  // Week strip (Mon–Sun of current week)
+  const mondayDate = (() => {
+    const d = new Date(today);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d;
+  })();
 
-      // Optimistically move accepted proposals into the scheduled section
-      const newScheduled: ScheduledEvent[] = toCreate.map((p) => ({
-        id: created.find((c) => c.id === p.session.id)?.eventId ?? p.session.id,
-        summary: EVENT_TITLES[p.session.type],
-        start: p.session.startISO,
-        end: p.session.endISO,
-      }));
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mondayDate);
+    d.setDate(mondayDate.getDate() + i);
+    const iso = isoDate(d);
+    const label = ["M", "T", "W", "T", "F", "S", "S"][i];
+    const isToday = iso === todayISO;
+    const sessionForDay = data?.schedule?.sessions?.find((s) => s.day === iso);
+    const hasActivity = (data?.activities ?? []).some((a) => a.start_date.startsWith(iso));
+    const isPast = iso < todayISO;
+    const dayFatigue = data?.fatigueHistory?.find((f) => f.date === iso);
 
-      setScheduledEvents((prev) => [...prev, ...newScheduled]);
-      setProposals((prev) => prev.filter((p) => p.status !== "accepted"));
-      setJustScheduledCount(toCreate.length);
-      setPageState("ready");
-    } catch (err) {
-      console.error(err);
-      setScheduleError("Failed to create calendar events. Please try again.");
-      setPageState("ready");
-    }
-  };
+    let indicator = "⚪";
+    if (sessionForDay && hasActivity) indicator = "✅";
+    else if (sessionForDay && isPast) indicator = "⚠️";
+    else if (sessionForDay) indicator = "🔵";
 
-  // ─── Unschedule ──────────────────────────────────────────────────────────────
+    const dotColor = dayFatigue
+      ? fatigueDotColor(
+          (dayFatigue.neuromuscular + dayFatigue.cardiovascular + dayFatigue.metabolic) / 3
+        )
+      : "#3F3F46";
 
-  async function handleUnschedule(event: ScheduledEvent) {
-    setUnschedulingId(event.id);
-    setConfirmUnschedule(null);
-    try {
-      const res = await fetch(`/api/calendar/${event.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
-      // Reload so proposals update to include the newly freed session type
-      await loadSchedule(currentWeekISO);
-    } catch {
-      setScheduleError("Failed to unschedule session.");
-      setPageState("ready");
-    } finally {
-      setUnschedulingId(null);
-    }
-  }
+    return { iso, label, isToday, indicator, icon: sessionForDay ? (SESSION_CONFIG[sessionForDay.type]?.icon ?? "💪") : "", dotColor };
+  });
 
-  // ─── Derived values ──────────────────────────────────────────────────────────
+  // Last updated label
+  const updatedLabel = (() => {
+    if (!lastUpdated) return null;
+    const mins = Math.floor((Date.now() - lastUpdated.getTime()) / 60000);
+    if (mins < 1) return "just now";
+    if (mins === 1) return "1 min ago";
+    return `${mins} mins ago`;
+  })();
 
-  const acceptedCount = proposals.filter((p) => p.status === "accepted").length;
-  const pendingCount = proposals.filter((p) => p.status === "pending").length;
-  const isCurrentWeek = weekOffset === 0;
+  const snapshot = data?.snapshot ?? null;
+  const color = snapshot ? verdictColor(snapshot.overall.verdict) : "#6B7280";
 
-  const scheduledByType = scheduledEvents.reduce<Record<string, number>>((acc, e) => {
-    const type = parseWorkoutType(e.summary);
-    if (type) acc[type] = (acc[type] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  const isInitialLoading =
-    status === "loading" ||
-    (pageState === "loading" && scheduledEvents.length === 0 && proposals.length === 0);
-
-  if (isInitialLoading) {
+  if (status === "loading") {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-gray-50">
-        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-gray-500 text-sm">Scanning your calendar…</p>
+      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-[#00E5A0] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 bg-gray-50/90 backdrop-blur border-b border-gray-200">
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">⚡</span>
-            <span className="font-bold text-gray-900 text-lg">TrainSync</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {session?.user?.image && (
-              <Image
-                src={session.user.image}
-                alt="avatar"
-                width={28}
-                height={28}
-                className="rounded-full"
-              />
-            )}
-            <button
-              onClick={() => signOut({ callbackUrl: "/" })}
-              className="text-xs text-gray-500 hover:text-gray-900 transition-colors"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-
-        {/* Week navigation */}
-        <div className="max-w-lg mx-auto px-4 pb-3 flex items-center justify-between gap-2">
-          <button
-            onClick={() => setWeekOffset((o) => o - 1)}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-            aria-label="Previous week"
-          >
-            ←
-          </button>
-          <div className="flex flex-col items-center">
-            <span className="text-sm font-medium text-gray-900">
-              {weekLabel(currentWeekISO)}
+    <div className="min-h-screen bg-[#1A1A1A] pb-24">
+      {/* ── Section 1: Header ────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between px-4 pt-5 pb-3">
+        <span className="text-zinc-400 text-sm font-medium">
+          {today.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+        </span>
+        {nearestGoal && daysUntil != null ? (
+          <Link href="/about">
+            <span className="bg-[#2A2A2A] text-zinc-300 text-xs px-3 py-1.5 rounded-full">
+              {nearestGoal.emoji} {daysUntil}d to {nearestGoal.label}
             </span>
-            {!isCurrentWeek ? (
-              <button
-                onClick={() => setWeekOffset(0)}
-                className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors mt-0.5"
-              >
-                Back to this week
-              </button>
-            ) : (
-              <span className="text-xs text-gray-500 mt-0.5">This week</span>
-            )}
-          </div>
-          <button
-            onClick={() => setWeekOffset((o) => o + 1)}
-            className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
-            aria-label="Next week"
-          >
-            →
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {/* Phase context */}
-        <WeekFocusCard
-          phaseContext={phaseContext}
-          proposals={proposals}
-          goals={goals}
-        />
-
-        {/* Daily readiness */}
-        {readiness && <ReadinessCard readiness={readiness} />}
-
-        {/* Strava / calendar sync health */}
-        <SyncStatusCard />
-
-        {/* Success banner */}
-        {justScheduledCount > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3">
-            <span className="text-green-600 text-xl">✓</span>
-            <div>
-              <p className="text-green-700 font-medium text-sm">Scheduled!</p>
-              <p className="text-green-600/70 text-sm mt-0.5">
-                {justScheduledCount} session{justScheduledCount !== 1 ? "s" : ""} added to your
-                Google Calendar.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Error banner */}
-        {(pageState === "error" || scheduleError) && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-            <p className="text-red-600 text-sm">
-              {scheduleError ?? "Something went wrong."}
-            </p>
-            <button
-              onClick={() => loadSchedule(currentWeekISO)}
-              className="mt-2 text-sm text-red-500 underline"
-            >
-              Try again
-            </button>
-          </div>
-        )}
-
-        {/* Warnings */}
-        {warnings.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-1">
-            {warnings.map((w, i) => (
-              <p key={i} className="text-amber-700 text-sm">
-                ⚠ {w}
-              </p>
-            ))}
-          </div>
-        )}
-
-        {/* ── Weekly Target Progress ───────────────────────────────────────── */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-gray-900">Weekly Target</h2>
-            <span
-              className={`text-xs font-medium ${
-                scheduledEvents.length >= weeklyTarget.length
-                  ? "text-green-600"
-                  : "text-gray-500"
-              }`}
-            >
-              {scheduledEvents.length}/{weeklyTarget.length} scheduled
+          </Link>
+        ) : (
+          <Link href="/about">
+            <span className="bg-[#2A2A2A] text-zinc-500 text-xs px-3 py-1.5 rounded-full">
+              Set a goal →
             </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {weeklyTarget.map((item, idx) => {
-              const cfg = workoutConfig[item.type];
-              const sameTypeBefore = weeklyTarget
-                .slice(0, idx)
-                .filter((t) => t.type === item.type).length;
-              const isScheduled = sameTypeBefore < (scheduledByType[item.type] ?? 0);
-              return (
-                <div
-                  key={idx}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    isScheduled
-                      ? `${cfg.bg} ${cfg.border} ${cfg.color}`
-                      : "bg-gray-50 border-gray-200 text-gray-400"
-                  }`}
-                >
-                  <span>{cfg.icon}</span>
-                  <span>{item.type}</span>
-                  {isScheduled && <span className="opacity-70">✓</span>}
+          </Link>
+        )}
+      </div>
+
+      <main className="max-w-lg mx-auto px-4 space-y-4">
+        {/* ── Section 2: Readiness Hero ─────────────────────────────────────── */}
+        {loading ? (
+          <Skeleton h="h-36" />
+        ) : snapshot ? (
+          <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex-shrink-0">
+                <ReadinessGauge score={snapshot.overall.score} color={color} />
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-xl leading-none">{snapshot.overall.verdictEmoji}</span>
+                  <span className="text-2xl font-bold text-white leading-none mt-1">
+                    {snapshot.overall.score}
+                  </span>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── Completed Sessions ───────────────────────────────────────────── */}
-        {scheduledEvents.filter((e) => completedEventIds.has(e.id)).length > 0 && (
-          <section>
-            <h2 className="text-base font-semibold text-gray-900 mb-3">Completed</h2>
-            <div className="space-y-2">
-              {scheduledEvents
-                .filter((e) => completedEventIds.has(e.id))
-                .map((event) => {
-                  const type = parseWorkoutType(event.summary) ?? "Crossfit";
-                  const cfg = workoutConfig[type];
-                  const dayStr = event.start.substring(0, 10);
-                  return (
-                    <div
-                      key={event.id}
-                      className="rounded-2xl border p-4 flex items-center gap-3 bg-green-50 border-green-200"
-                    >
-                      <span className="text-xl flex-shrink-0">{cfg.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-green-700 truncate">
-                          {type}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {formatDay(dayStr)} · {formatEventTime(event.start)}
-                        </p>
-                      </div>
-                      <span className="text-green-600 text-lg flex-shrink-0">✓</span>
-                    </div>
-                  );
-                })}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-semibold text-lg capitalize">{snapshot.overall.verdict}</p>
+                <p className="text-zinc-400 text-sm mt-1 leading-relaxed">
+                  {snapshot.overall.recommendation}
+                </p>
+                {snapshot.overall.sleepScore != null && (
+                  <div className="flex gap-2 mt-2">
+                    <span className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-0.5 rounded-full">
+                      😴 {snapshot.overall.sleepScore}
+                    </span>
+                    {snapshot.overall.hrvScore != null && (
+                      <span className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-0.5 rounded-full">
+                        ❤️ HRV {snapshot.overall.hrvScore}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          </section>
+          </Link>
+        ) : (
+          <div className="bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4 text-center">
+            <p className="text-zinc-500 text-sm">No readiness data yet.</p>
+            <Link href="/readiness" className="text-[#00E5A0] text-sm mt-1 inline-block">
+              View readiness →
+            </Link>
+          </div>
         )}
 
-        {/* ── Scheduled Sessions ───────────────────────────────────────────── */}
-        {scheduledEvents.filter((e) => !completedEventIds.has(e.id)).length > 0 && (
-          <section>
-            <h2 className="text-base font-semibold text-gray-900 mb-3">Scheduled</h2>
-            <div className="space-y-2">
-              {scheduledEvents
-                .filter((e) => !completedEventIds.has(e.id))
-                .map((event) => {
-                  const type = parseWorkoutType(event.summary) ?? "Crossfit";
-                  const cfg = workoutConfig[type];
-                  const dayStr = event.start.substring(0, 10);
-                  const isUnscheduling = unschedulingId === event.id;
-                  return (
-                    <div
-                      key={event.id}
-                      className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${cfg.bg} ${cfg.border}`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-xl flex-shrink-0">{cfg.icon}</span>
-                        <div className="min-w-0">
-                          <p className={`text-sm font-semibold ${cfg.color} truncate`}>
-                            {type}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatDay(dayStr)} · {formatEventTime(event.start)}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setConfirmUnschedule(event)}
-                        disabled={isUnscheduling}
-                        className="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-white border border-gray-200 text-gray-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors disabled:opacity-50"
-                      >
-                        {isUnscheduling ? "…" : "Unschedule"}
-                      </button>
-                    </div>
-                  );
-                })}
-            </div>
-          </section>
-        )}
-
-        {/* ── Pending (To Schedule) ────────────────────────────────────────── */}
-        {pageState === "loading" ? (
-          <div className="flex items-center justify-center py-10">
-            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : proposals.length > 0 ? (
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold text-gray-900">Pending</h2>
-              {pendingCount > 0 && (
-                <button
-                  onClick={handleAcceptAll}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 transition-colors font-medium"
-                >
-                  Accept all
-                </button>
-              )}
-            </div>
-            <div className="space-y-3">
-              {proposals.map((proposal) => (
-                <WorkoutCard
-                  key={proposal.session.id}
-                  proposal={proposal}
-                  dayEvents={calEventsByDay[proposal.session.day] ?? []}
-                  openGymSuggestion={proposal.session.openGymSuggestion ?? null}
-                  onAccept={handleAccept}
-                  onSkip={handleSkip}
-                  onChangeTime={handleChangeTime}
-                />
-              ))}
-            </div>
-          </section>
-        ) : scheduledEvents.length >= weeklyTarget.length ? (
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-            <p className="text-green-700 font-semibold text-sm">Week fully scheduled!</p>
-            <p className="text-green-600/70 text-xs mt-1">
-              All {weeklyTarget.length} sessions are on your calendar.
-            </p>
-          </div>
-        ) : scheduledEvents.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-sm font-medium">No sessions found</p>
-            <p className="text-gray-400 text-xs mt-1">
-              No free slots in the 6:30–8am or 5–8pm windows this week.
-            </p>
-          </div>
+        {/* ── Section 3: Fatigue Chips ──────────────────────────────────────── */}
+        {loading ? (
+          <Skeleton h="h-20" />
+        ) : snapshot ? (
+          <Link href="/readiness" className="grid grid-cols-3 gap-3">
+            {[
+              { label: "Neuromuscular", icon: "💪", score: snapshot.neuromuscular.score },
+              { label: "Cardiovascular", icon: "❤️", score: snapshot.cardiovascular.score },
+              { label: "Metabolic",      icon: "⚡", score: snapshot.metabolic.score },
+            ].map((sys) => (
+              <div key={sys.label} className={`rounded-2xl p-3 text-center ${chipStyle(sys.score)}`}>
+                <p className="text-xs opacity-70 mb-1">{sys.icon}</p>
+                <p className="text-lg font-bold leading-none">{sys.score}</p>
+                <p className="text-xs opacity-70 mt-1">{sys.label.slice(0, 6)}</p>
+              </div>
+            ))}
+          </Link>
         ) : null}
 
-        {/* ── Schedule CTA ─────────────────────────────────────────────────── */}
-        {acceptedCount > 0 && (
-          <div className="sticky bottom-4">
-            <button
-              onClick={handleScheduleWeek}
-              disabled={pageState === "scheduling"}
-              className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-base transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
-            >
-              {pageState === "scheduling" ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Adding to Calendar…
-                </>
-              ) : (
-                <>📅 Schedule {acceptedCount} Session{acceptedCount !== 1 ? "s" : ""}</>
-              )}
-            </button>
+        {/* ── Section 4: Today's Plan ───────────────────────────────────────── */}
+        {!loading && (
+          <div className="bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
+            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+              Today&apos;s Plan
+            </h2>
+            {todaySessions.length === 0 ? (
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🛋️</span>
+                <div>
+                  <p className="text-white font-medium">Rest Day</p>
+                  <span className="text-xs bg-green-900/40 text-green-400 px-2 py-0.5 rounded-full">
+                    ✓ Recovery
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {todaySessions.map((s) => {
+                  const cfg = SESSION_CONFIG[s.type] ?? { icon: "💪", label: s.type, isHard: false };
+                  const done = todayActivities.length > 0;
+                  const showWarning =
+                    !done &&
+                    cfg.isHard &&
+                    snapshot?.overall.verdict === "recover";
+                  return (
+                    <div key={s.id} className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{cfg.icon}</span>
+                        <div>
+                          <p className="text-white font-medium">{cfg.label}</p>
+                          <p className="text-zinc-500 text-xs">{s.startTime}</p>
+                        </div>
+                      </div>
+                      {done ? (
+                        <span className="text-xs bg-green-900/40 text-green-400 px-2 py-0.5 rounded-full">
+                          ✓ Done
+                        </span>
+                      ) : showWarning ? (
+                        <Link href="/schedule">
+                          <span className="text-xs bg-red-900/40 text-red-400 px-2 py-0.5 rounded-full">
+                            ⚠️ Reschedule?
+                          </span>
+                        </Link>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
-        <div className="h-4" />
-      </main>
-
-      {/* ── Time picker modal ────────────────────────────────────────────────── */}
-      {editingSession && (
-        <TimePickerModal
-          session={editingSession}
-          onConfirm={handleTimeConfirm}
-          onClose={() => setEditingSession(null)}
-          showDayPicker
-          weekDays={weekDays}
-          calEventsByDay={calEventsByDay}
-        />
-      )}
-
-      {/* ── Unschedule confirm sheet ─────────────────────────────────────────── */}
-      {confirmUnschedule && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30"
-          onClick={() => setConfirmUnschedule(null)}
-        >
-          <div
-            className="absolute bottom-20 left-4 right-4 bg-white border border-gray-200 rounded-2xl p-4 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-sm font-semibold text-gray-900 mb-1">
-              Unschedule this session?
-            </p>
-            <p className="text-xs text-gray-600 mb-1">
-              {confirmUnschedule.summary.replace(/^[^\w]+/, "").trim()} ·{" "}
-              {formatEventTime(confirmUnschedule.start)}
-            </p>
-            <p className="text-xs text-gray-400 mb-4">
-              This removes the event from Google Calendar. You can reschedule it anytime.
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmUnschedule(null)}
-                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleUnschedule(confirmUnschedule)}
-                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-500 transition-colors"
-              >
-                Unschedule
-              </button>
+        {/* ── Section 5: Week at a Glance ───────────────────────────────────── */}
+        {!loading && (
+          <div className="bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
+            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+              This Week
+            </h2>
+            <div className="grid grid-cols-7 gap-1">
+              {weekDays.map((day) => (
+                <div key={day.iso} className="flex flex-col items-center gap-1">
+                  <span
+                    className={`text-xs font-medium ${
+                      day.isToday ? "text-[#00E5A0]" : "text-zinc-500"
+                    }`}
+                  >
+                    {day.label}
+                  </span>
+                  <span className="text-sm leading-none">{day.icon || "·"}</span>
+                  <span className="text-sm leading-none">{day.indicator}</span>
+                  <div
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{ backgroundColor: day.dotColor }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
+        )}
+
+        {/* ── Section 6: Training Load Chart ───────────────────────────────── */}
+        {loading ? (
+          <Skeleton h="h-36" />
+        ) : data?.fatigueHistory && data.fatigueHistory.some((f) => f.neuromuscular + f.cardiovascular + f.metabolic > 0) ? (
+          <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
+            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+              Training Load (14 days)
+            </h2>
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={data.fatigueHistory} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                <XAxis
+                  dataKey="label"
+                  tick={{ fill: "#52525B", fontSize: 9 }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval={6}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fill: "#52525B", fontSize: 9 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  contentStyle={{ background: "#242424", border: "1px solid #2A2A2A", borderRadius: 8, fontSize: 11 }}
+                  labelStyle={{ color: "#A1A1AA" }}
+                  itemStyle={{ color: "#E4E4E7" }}
+                />
+                <ReferenceLine y={65} stroke="#F59E0B" strokeDasharray="3 3" strokeOpacity={0.5} />
+                <ReferenceLine y={85} stroke="#EF4444" strokeDasharray="3 3" strokeOpacity={0.5} />
+                <Line dataKey="neuromuscular" stroke="#F97316" dot={false} strokeWidth={1.5} name="Neuro" />
+                <Line dataKey="cardiovascular" stroke="#60A5FA" dot={false} strokeWidth={1.5} name="Cardio" />
+                <Line dataKey="metabolic"      stroke="#A78BFA" dot={false} strokeWidth={1.5} name="Metabolic" />
+              </LineChart>
+            </ResponsiveContainer>
+          </Link>
+        ) : null}
+
+        {/* ── Section 7: Sleep & Recovery ───────────────────────────────────── */}
+        {!loading && (
+          <div className="grid grid-cols-2 gap-3">
+            {/* Sleep panel */}
+            <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-3">
+              <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                😴 Sleep
+              </p>
+              {(() => {
+                const lastNight = data?.sleepLast7?.[6] ?? data?.sleepLast7?.[5] ?? null;
+                const avg = data?.sleepAvg30Hours;
+                const hours = lastNight?.hours ?? null;
+                const compLabel = hours != null && avg != null
+                  ? hours >= avg
+                    ? { text: "↑ above avg", cls: "text-green-400" }
+                    : hours >= avg * 0.9
+                    ? { text: "→ at avg", cls: "text-zinc-400" }
+                    : { text: "↓ below avg", cls: "text-amber-400" }
+                  : null;
+                const sleepValues = (data?.sleepLast7 ?? []).map((e) => e?.hours ?? null);
+                return (
+                  <>
+                    <p className="text-white text-2xl font-bold leading-none">
+                      {hours != null ? `${hours}h` : "—"}
+                    </p>
+                    {compLabel && (
+                      <p className={`text-xs mt-0.5 ${compLabel.cls}`}>{compLabel.text}</p>
+                    )}
+                    {avg != null && (
+                      <p className="text-zinc-600 text-xs mt-0.5">{avg}h avg/30d</p>
+                    )}
+                    <div className="mt-2">
+                      <BarSparkline values={sleepValues} maxVal={10} color="#60A5FA" />
+                    </div>
+                  </>
+                );
+              })()}
+            </Link>
+
+            {/* Resting HR panel */}
+            <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-3">
+              <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">
+                ❤️ Resting HR
+              </p>
+              {(() => {
+                const todayRHR = data?.rhrLast7?.[6] ?? data?.rhrLast7?.[5] ?? null;
+                const avg = data?.rhrAvg30Bpm;
+                const bpm = todayRHR?.bpm ?? null;
+                const compLabel = bpm != null && avg != null
+                  ? bpm <= avg * 1.03
+                    ? { text: "↓ normal", cls: "text-green-400" }
+                    : bpm <= avg * 1.08
+                    ? { text: "→ slightly elevated", cls: "text-amber-400" }
+                    : { text: "↑ elevated", cls: "text-red-400" }
+                  : null;
+                const rhrValues = (data?.rhrLast7 ?? []).map((e) => e?.bpm ?? null);
+                const maxBpm = Math.max(...rhrValues.filter((v): v is number => v !== null), 80);
+                return (
+                  <>
+                    <p className="text-white text-2xl font-bold leading-none">
+                      {bpm != null ? `${bpm}` : "—"}
+                      {bpm != null && <span className="text-sm font-normal text-zinc-500 ml-1">bpm</span>}
+                    </p>
+                    {compLabel && (
+                      <p className={`text-xs mt-0.5 ${compLabel.cls}`}>{compLabel.text}</p>
+                    )}
+                    {avg != null && (
+                      <p className="text-zinc-600 text-xs mt-0.5">{avg} bpm avg/30d</p>
+                    )}
+                    <div className="mt-2">
+                      <BarSparkline values={rhrValues} maxVal={maxBpm} color="#F87171" />
+                    </div>
+                  </>
+                );
+              })()}
+            </Link>
+          </div>
+        )}
+
+        {/* ── Section 8: Last Session ───────────────────────────────────────── */}
+        {!loading && data?.lastSession && (
+          <Link
+            href={`/session/${data.lastSession.date}`}
+            className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4"
+          >
+            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+              Last Session
+            </h2>
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <p className="text-white font-semibold">
+                  {data.lastSession.wod?.box ?? "Training Session"}
+                </p>
+                <p className="text-zinc-500 text-xs mt-0.5">
+                  {new Date(data.lastSession.date + "T12:00:00").toLocaleDateString("en-GB", {
+                    weekday: "short",
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </p>
+              </div>
+              {data.lastSession.wod?.sessionType && (
+                <span className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-1 rounded-full capitalize">
+                  {data.lastSession.wod.sessionType.replace(/_/g, " ")}
+                </span>
+              )}
+            </div>
+            <div className="flex gap-5">
+              {data.lastSession.enrichedIntensity != null && (
+                <div>
+                  <p className="text-zinc-500 text-xs">Intensity</p>
+                  <p className="text-white font-bold">{data.lastSession.enrichedIntensity}/10</p>
+                </div>
+              )}
+              {data.lastSession.performance?.averageHR != null && (
+                <div>
+                  <p className="text-zinc-500 text-xs">Avg HR</p>
+                  <p className="text-white font-bold">{data.lastSession.performance.averageHR} bpm</p>
+                </div>
+              )}
+              {data.lastSession.performance?.duration != null && (
+                <div>
+                  <p className="text-zinc-500 text-xs">Duration</p>
+                  <p className="text-white font-bold">{minsToHM(data.lastSession.performance.duration)}</p>
+                </div>
+              )}
+            </div>
+            {(data.lastSession.sessionNotes?.parsed?.liftData?.length ?? 0) > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {data.lastSession.sessionNotes!.parsed.liftData.slice(0, 4).map((lift, i) => (
+                  <span
+                    key={i}
+                    className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-0.5 rounded-full"
+                  >
+                    {lift.lift} {lift.topSetWeight}kg
+                  </span>
+                ))}
+              </div>
+            )}
+          </Link>
+        )}
+
+        {/* ── Footer ───────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between py-2">
+          <p className="text-zinc-600 text-xs">
+            {updatedLabel ? `Updated ${updatedLabel}` : "Loading…"}
+          </p>
+          <button
+            onClick={() => setRefreshKey((k) => k + 1)}
+            className="text-xs text-zinc-500 hover:text-[#00E5A0] transition-colors"
+          >
+            ↻ Refresh
+          </button>
         </div>
-      )}
+      </main>
 
       <BottomNav />
     </div>
