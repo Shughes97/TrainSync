@@ -145,8 +145,8 @@ export function computeMetabolicFatigue(
     primaryDriver = `${mostRecent.description} — ${lastHardSessionHours}h ago`;
   }
 
-  // Normalise: raw 300 = extreme session (e.g. high RPE + high HR for 1hr with full suffer score)
-  const score = Math.round(Math.min((totalDecayed / 300) * 100, 100));
+  // Normalise: raw 150 = extreme session (e.g. high RPE + high HR for 1hr with full suffer score)
+  const score = Math.round(Math.min((totalDecayed / 150) * 100, 100));
   const freshness = 100 - score;
 
   return {

@@ -58,7 +58,25 @@ export function computeCardiovascularFatigue(
 
   // Collect TRIMP from activities linked to enriched sessions
   for (const session of sessions) {
-    if (!session?.performance) continue;
+    if (!session?.performance) {
+      // RPE-based fallback for wodify_pending sessions (no Strava match yet)
+      const rpe = session?.sessionNotes?.parsed?.sessionRPE;
+      const isAerobic =
+        session?.wod?.sessionType === "metcon_only" ||
+        session?.wod?.sessionType === "strength_and_metcon" ||
+        session?.dominantStressType === "cardiovascular" ||
+        session?.dominantStressType === "mixed";
+      if (rpe != null && isAerobic && session) {
+        const fallbackTrimp = rpe * 10; // RPE 9 → TRIMP 90
+        const startDate = isoToDate(session.date);
+        const desc = session.wod?.box
+          ? `${session.wod.box} WOD (${session.date})`
+          : `Session (${session.date})`;
+        points.push({ trimp: fallbackTrimp, startDate, description: desc });
+      }
+      continue;
+    }
+
     const actId = session.performance.stravaActivityId;
     if (actId) enrichedActivityIds.add(actId);
 
@@ -74,6 +92,11 @@ export function computeCardiovascularFatigue(
     } else {
       trimp = durationMins * 0.5;
     }
+
+    // Apply CrossFit intermittency discount — Banister TRIMP assumes continuous aerobic work
+    const sessionType = session.wod?.sessionType;
+    if (sessionType === "metcon_only") trimp *= 0.80;
+    else if (sessionType === "strength_and_metcon") trimp *= 0.65;
 
     // Only count sessions that have a cardiovascular component
     const isAerobic =
@@ -109,6 +132,9 @@ export function computeCardiovascularFatigue(
     } else {
       trimp = durationMins * 0.5;
     }
+
+    // Apply CrossFit intermittency discount
+    if (activity.type === "Crossfit") trimp *= 0.75;
 
     if (trimp > 0) {
       points.push({

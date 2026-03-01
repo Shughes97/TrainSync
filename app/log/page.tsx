@@ -333,7 +333,7 @@ export default function LogPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Anything to add? e.g. weights you used, how it felt, any notes"
                 rows={3}
-                className="w-full text-sm rounded-xl border border-gray-200 px-3 py-2.5 bg-gray-50 placeholder-gray-400 resize-none focus:outline-none focus:border-indigo-300"
+                className="w-full text-sm text-gray-900 rounded-xl border border-gray-200 px-3 py-2.5 bg-gray-50 placeholder-gray-400 resize-none focus:outline-none focus:border-indigo-300"
               />
             </div>
 
