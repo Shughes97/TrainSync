@@ -27,7 +27,7 @@ export default function ReadinessCard({ readiness }: ReadinessCardProps) {
 
   return (
     <Link href="/readiness" className="block">
-      <div className="bg-white/65 backdrop-blur-xl border border-white/60 rounded-2xl p-4 shadow-lg shadow-black/[0.04] hover:bg-white/75 transition-colors">
+      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm hover:border-indigo-200 transition-colors">
         {/* Top row: emoji + overall + three system scores */}
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
@@ -65,7 +65,7 @@ export default function ReadinessCard({ readiness }: ReadinessCardProps) {
         </div>
 
         {/* Progress bar */}
-        <div className="h-1.5 bg-gray-200/60 rounded-full overflow-hidden mb-3">
+        <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-3">
           <div
             className={`h-full rounded-full transition-all ${bar}`}
             style={{ width: `${overall.score}%` }}

@@ -73,10 +73,10 @@ function verdictColor(verdict: string): string {
 }
 
 function chipStyle(score: number): string {
-  if (score < 40) return "bg-green-100/50 backdrop-blur-md text-green-700 border border-green-200/60";
-  if (score < 65) return "bg-amber-100/50 backdrop-blur-md text-amber-700 border border-amber-200/60";
-  if (score < 85) return "bg-orange-100/50 backdrop-blur-md text-orange-700 border border-orange-200/60";
-  return "bg-red-100/50 backdrop-blur-md text-red-700 border border-red-200/60";
+  if (score < 40) return "bg-green-50 text-green-600 border border-green-200";
+  if (score < 65) return "bg-amber-50 text-amber-600 border border-amber-200";
+  if (score < 85) return "bg-orange-50 text-orange-600 border border-orange-200";
+  return "bg-red-50 text-red-600 border border-red-200";
 }
 
 function isoDate(d: Date): string {
@@ -139,7 +139,7 @@ function BarSparkline({
 }
 
 function Skeleton({ h = "h-24" }: { h?: string }) {
-  return <div className={`bg-white/40 animate-pulse rounded-2xl ${h}`} />;
+  return <div className={`bg-gray-200 animate-pulse rounded-2xl ${h}`} />;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -244,14 +244,14 @@ export default function DashboardPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-100 via-indigo-50/40 to-violet-50/30 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-indigo-50/40 to-violet-50/30 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20">
       {/* ── Section 1: Header ────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-5 pb-3 max-w-lg mx-auto">
         <span className="text-gray-500 text-sm font-medium">
@@ -259,13 +259,13 @@ export default function DashboardPage() {
         </span>
         {nearestGoal && daysUntil != null ? (
           <Link href="/about">
-            <span className="bg-white/60 backdrop-blur-sm text-gray-700 text-xs px-3 py-1.5 rounded-full border border-white/50">
+            <span className="bg-gray-100 text-gray-700 text-xs px-3 py-1.5 rounded-full">
               {nearestGoal.emoji} {daysUntil}d to {nearestGoal.label}
             </span>
           </Link>
         ) : (
           <Link href="/about">
-            <span className="bg-white/60 backdrop-blur-sm text-gray-500 text-xs px-3 py-1.5 rounded-full border border-white/50">
+            <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1.5 rounded-full">
               Set a goal →
             </span>
           </Link>
@@ -277,7 +277,7 @@ export default function DashboardPage() {
         {loading ? (
           <Skeleton h="h-36" />
         ) : snapshot ? (
-          <Link href="/readiness" className="block bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-4">
+          <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0">
                 <ReadinessGauge score={snapshot.overall.score} color={color} />
@@ -295,7 +295,7 @@ export default function DashboardPage() {
                 </p>
                 {snapshot.overall.sleepScore != null && (
                   <div className="flex gap-2 mt-2">
-                    <span className="text-xs bg-white/50 backdrop-blur-sm text-gray-600 px-2 py-0.5 rounded-full border border-white/50">
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                       😴 {snapshot.overall.sleepScore}
                     </span>
                   </div>
@@ -304,7 +304,7 @@ export default function DashboardPage() {
             </div>
           </Link>
         ) : (
-          <div className="bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-4 text-center">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4 text-center">
             <p className="text-gray-500 text-sm">No readiness data yet.</p>
             <Link href="/readiness" className="text-indigo-600 text-sm mt-1 inline-block">
               View readiness →
@@ -338,7 +338,7 @@ export default function DashboardPage() {
             .sort((a, b) => a.day.localeCompare(b.day) || a.startTime.localeCompare(b.startTime))[0] ?? null;
 
           if (!nextSession) return (
-            <Link href="/schedule" className="block bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-4">
+            <Link href="/schedule" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
               <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
                 Next Session
               </h2>
@@ -365,7 +365,7 @@ export default function DashboardPage() {
           const showWarning = !isDone && cfg.isHard && snapshot?.overall.verdict === "recover";
 
           return (
-            <Link href="/schedule" className="block bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-4">
+            <Link href="/schedule" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
               <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
                 Next Session
               </h2>
@@ -378,11 +378,11 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 {isDone ? (
-                  <span className="text-xs bg-green-100/50 backdrop-blur-sm text-green-700 px-2.5 py-1 rounded-full border border-green-200/60">✓ Done</span>
+                  <span className="text-xs bg-green-50 text-green-600 px-2.5 py-1 rounded-full">✓ Done</span>
                 ) : showWarning ? (
-                  <span className="text-xs bg-red-100/50 backdrop-blur-sm text-red-700 px-2.5 py-1 rounded-full border border-red-200/60">⚠️ Reschedule?</span>
+                  <span className="text-xs bg-red-50 text-red-600 px-2.5 py-1 rounded-full">⚠️ Reschedule?</span>
                 ) : (
-                  <span className="text-xs bg-white/50 backdrop-blur-sm text-gray-500 px-2.5 py-1 rounded-full border border-white/50">Scheduled</span>
+                  <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Scheduled</span>
                 )}
               </div>
             </Link>
@@ -391,7 +391,7 @@ export default function DashboardPage() {
 
         {/* ── Section 5: Week at a Glance ───────────────────────────────────── */}
         {!loading && (
-          <div className="bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-4">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
             <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
               This Week
             </h2>
@@ -426,7 +426,7 @@ export default function DashboardPage() {
         {loading ? (
           <Skeleton h="h-36" />
         ) : data?.fatigueHistory && data.fatigueHistory.some((f) => f.neuromuscular + f.cardiovascular + f.metabolic > 0) ? (
-          <Link href="/readiness" className="block bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-4">
+          <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
             <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
               Training Load (14 days)
             </h2>
@@ -446,7 +446,7 @@ export default function DashboardPage() {
                   axisLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ background: "rgba(255,255,255,0.85)", backdropFilter: "blur(12px)", border: "1px solid rgba(255,255,255,0.6)", borderRadius: 8, fontSize: 11 }}
+                  contentStyle={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 11 }}
                   labelStyle={{ color: "#6B7280" }}
                   itemStyle={{ color: "#111827" }}
                 />
@@ -484,7 +484,7 @@ export default function DashboardPage() {
         {!loading && (
           <div className="grid grid-cols-2 gap-3">
             {/* Sleep panel */}
-            <Link href="/readiness" className="block bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-3">
+            <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-3">
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
                 😴 Sleep
               </p>
@@ -520,7 +520,7 @@ export default function DashboardPage() {
             </Link>
 
             {/* Resting HR panel */}
-            <Link href="/readiness" className="block bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-3">
+            <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-3">
               <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
                 ❤️ Resting HR
               </p>
@@ -570,7 +570,7 @@ export default function DashboardPage() {
         {!loading && data?.lastSession && (
           <Link
             href={`/session/${data.lastSession.date}`}
-            className="block bg-white/65 backdrop-blur-xl border border-white/60 shadow-lg shadow-black/[0.04] rounded-2xl p-4"
+            className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4"
           >
             <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
               Last Session
@@ -589,7 +589,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               {data.lastSession.wod?.sessionType && (
-                <span className="text-xs bg-white/50 backdrop-blur-sm text-gray-600 px-2 py-1 rounded-full capitalize border border-white/50">
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full capitalize">
                   {data.lastSession.wod.sessionType.replace(/_/g, " ")}
                 </span>
               )}
@@ -625,7 +625,7 @@ export default function DashboardPage() {
                 {data.lastSession.sessionNotes!.parsed.liftData.slice(0, 4).map((lift, i) => (
                   <span
                     key={i}
-                    className="text-xs bg-white/50 backdrop-blur-sm text-gray-600 px-2 py-0.5 rounded-full border border-white/50"
+                    className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
                   >
                     {lift.lift} {lift.topSetWeight}kg
                   </span>
