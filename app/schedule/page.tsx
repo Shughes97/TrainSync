@@ -2,7 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import WorkoutCard from "@/components/WorkoutCard";
 import WeekFocusCard from "@/components/WeekFocusCard";
 import SyncStatusCard from "@/components/SyncStatusCard";
@@ -13,8 +13,11 @@ import { formatDay, getWeekStart } from "@/lib/scheduler";
 import { getCurrentPhase } from "@/lib/training-config";
 import type {
   CalEventsByDay,
+  EnrichedSession,
   Goal,
+  PersonalBest,
   PhaseContext,
+  WodifyParsed,
   WorkoutProposal,
   WorkoutSession,
   WorkoutType,
@@ -94,6 +97,27 @@ function formatEventTime(iso: string): string {
   return `${hour}:${m.toString().padStart(2, "0")} ${period}`;
 }
 
+function logTodayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function loadBadgeStyle(load: string): string {
+  switch (load) {
+    case "very_high": return "bg-red-100 text-red-700 border-red-200";
+    case "high":      return "bg-orange-100 text-orange-700 border-orange-200";
+    case "moderate":  return "bg-amber-100 text-amber-700 border-amber-200";
+    default:          return "bg-green-100 text-green-700 border-green-200";
+  }
+}
+
+function intensityColor(score: number): string {
+  if (score >= 8) return "bg-red-500";
+  if (score >= 6) return "bg-orange-500";
+  if (score >= 4) return "bg-amber-500";
+  return "bg-green-500";
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -113,6 +137,19 @@ export default function Dashboard() {
   const [unschedulingId, setUnschedulingId] = useState<string | null>(null);
   const [confirmUnschedule, setConfirmUnschedule] = useState<ScheduledEvent | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
+
+  // ─── Log session state ────────────────────────────────────────────────────
+  const [logDate, setLogDate] = useState(logTodayISO);
+  const [imageDataUrls, setImageDataUrls] = useState<string[]>([]);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [wodParsed, setWodParsed] = useState<WodifyParsed | null>(null);
+  const [wodEnriched, setWodEnriched] = useState<EnrichedSession | null>(null);
+  const [logConfirmed, setLogConfirmed] = useState(false);
+  const [logNotes, setLogNotes] = useState("");
+  const [confirmingNotes, setConfirmingNotes] = useState(false);
+  const [newPRs, setNewPRs] = useState<PersonalBest[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentWeekISO = useMemo(() => weekStartForOffset(weekOffset), [weekOffset]);
 
@@ -286,6 +323,85 @@ export default function Dashboard() {
       setPageState("ready");
     } finally {
       setUnschedulingId(null);
+    }
+  }
+
+  // ─── Log session handlers ─────────────────────────────────────────────────
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    e.target.value = "";
+
+    setWodParsed(null);
+    setWodEnriched(null);
+    setParseError(null);
+    setLogConfirmed(false);
+    setLogNotes("");
+    setNewPRs([]);
+
+    let loaded = 0;
+    const urls: string[] = new Array(files.length);
+    files.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        urls[idx] = reader.result as string;
+        loaded++;
+        if (loaded === files.length) setImageDataUrls(urls);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleParse() {
+    if (!imageDataUrls.length) return;
+    setParsing(true);
+    setParseError(null);
+    try {
+      const res = await fetch("/api/wodify/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ images: imageDataUrls, date: logDate }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error ?? "Parse failed");
+      }
+      const data = await res.json();
+      setWodParsed(data.parsed);
+      setWodEnriched(data.enriched);
+    } catch (err) {
+      setParseError(String(err));
+    } finally {
+      setParsing(false);
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (imageDataUrls.length && !wodParsed && !parsing) handleParse();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageDataUrls]);
+
+  async function handleConfirmLog() {
+    setConfirmingNotes(true);
+    try {
+      if (logNotes.trim() && wodParsed) {
+        const res = await fetch("/api/session/parse-notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: logDate, notes: logNotes, wodContext: wodParsed }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.newPersonalBests?.length) setNewPRs(data.newPersonalBests);
+        }
+      }
+    } catch {
+      // non-fatal
+    } finally {
+      setConfirmingNotes(false);
+      setLogConfirmed(true);
     }
   }
 
@@ -608,6 +724,271 @@ export default function Dashboard() {
             </button>
           </div>
         )}
+
+        {/* ── Log Session ──────────────────────────────────────────────── */}
+        <section>
+          <h2 className="text-base font-semibold text-gray-900 mb-3">Log Session</h2>
+
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm space-y-4">
+            {/* Date picker row */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-700">Date</p>
+              <input
+                type="date"
+                value={logDate}
+                max={logTodayISO()}
+                onChange={(e) => {
+                  setLogDate(e.target.value);
+                  setWodParsed(null);
+                  setWodEnriched(null);
+                  setParseError(null);
+                  setLogConfirmed(false);
+                  setImageDataUrls([]);
+                  setLogNotes("");
+                  setNewPRs([]);
+                }}
+                className="text-sm text-gray-600 border border-gray-200 rounded-lg px-2 py-1 bg-white"
+              />
+            </div>
+
+            {/* Upload area */}
+            {!logConfirmed && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <label
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex flex-col items-center justify-center gap-3 w-full rounded-2xl border-2 border-dashed p-6 cursor-pointer transition-colors ${
+                    imageDataUrls.length
+                      ? "border-indigo-300 bg-indigo-50"
+                      : "border-gray-300 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50"
+                  }`}
+                >
+                  <span className="text-3xl">📸</span>
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-700">
+                      {imageDataUrls.length
+                        ? `${imageDataUrls.length} screenshot${imageDataUrls.length > 1 ? "s" : ""} selected — tap to change`
+                        : "Upload Wodify screenshots"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Select all screenshots for this session
+                    </p>
+                  </div>
+                </label>
+
+                {/* Thumbnails */}
+                {imageDataUrls.length > 0 && (
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {imageDataUrls.map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={i}
+                        src={url}
+                        alt={`Screenshot ${i + 1}`}
+                        className="h-20 w-auto rounded-xl border border-gray-200 flex-shrink-0 object-contain bg-white"
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Parsing spinner */}
+            {parsing && (
+              <div className="flex items-center gap-3 py-4 justify-center">
+                <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-gray-500">
+                  {imageDataUrls.length > 1
+                    ? `Combining ${imageDataUrls.length} screenshots…`
+                    : "Parsing your WOD…"}
+                </p>
+              </div>
+            )}
+
+            {/* Parse error */}
+            {parseError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+                <p className="text-sm text-red-600">{parseError}</p>
+                <button
+                  onClick={handleParse}
+                  className="mt-1.5 text-sm text-red-500 underline"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+
+            {/* Parsed result */}
+            {wodParsed && !logConfirmed && !parsing && (
+              <div className="space-y-3">
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200 rounded-full px-2.5 py-1">
+                    🏋️ {wodParsed.sessionType.replace(/_/g, " ")}
+                  </span>
+                  <span className={`text-xs font-medium border rounded-full px-2.5 py-1 ${loadBadgeStyle(wodParsed.overallLoad)}`}>
+                    {wodParsed.overallLoad.replace("_", " ")} load
+                  </span>
+                  {wodParsed.box && (
+                    <span className="text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200 rounded-full px-2.5 py-1">
+                      📍 {wodParsed.box}
+                    </span>
+                  )}
+                </div>
+
+                {/* Sections */}
+                {wodParsed.sections.length > 0 && (
+                  <div className="space-y-2">
+                    {wodParsed.sections.map((section, i) => (
+                      <div key={i} className="bg-gray-50 rounded-xl p-3">
+                        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">
+                          {section.type} — {section.name}
+                        </p>
+                        <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                          {section.description}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Movements */}
+                {(() => {
+                  const all = wodParsed.sections.flatMap((s) => s.movements);
+                  const unique = all.filter((m, i) => all.indexOf(m) === i);
+                  return unique.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {unique.map((m) => (
+                        <span
+                          key={m}
+                          className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full px-2.5 py-1"
+                        >
+                          {m}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Strava match status */}
+                {wodEnriched?.performance ? (
+                  <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl p-3">
+                    <span className="text-lg">🏃</span>
+                    <div className="text-xs text-green-700">
+                      <p className="font-semibold">Strava matched</p>
+                      <p>
+                        {wodEnriched.performance.duration} min
+                        {wodEnriched.performance.averageHR != null &&
+                          ` · avg HR ${wodEnriched.performance.averageHR} bpm`}
+                        {wodEnriched.performance.calories != null &&
+                          ` · ${wodEnriched.performance.calories} kcal`}
+                      </p>
+                    </div>
+                  </div>
+                ) : wodEnriched?.pendingMatch ? (
+                  <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <span className="text-lg">⏳</span>
+                    <p className="text-xs text-amber-700">
+                      Strava sync pending — will match automatically when your session syncs.
+                    </p>
+                  </div>
+                ) : null}
+
+                {/* Intensity bar */}
+                {wodEnriched?.enrichedIntensity != null && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Intensity</p>
+                      <span className="text-sm font-bold text-gray-900">{wodEnriched.enrichedIntensity}/10</span>
+                    </div>
+                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${intensityColor(wodEnriched.enrichedIntensity)}`}
+                        style={{ width: `${wodEnriched.enrichedIntensity * 10}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes textarea */}
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Session notes (optional)
+                  </p>
+                  <textarea
+                    value={logNotes}
+                    onChange={(e) => setLogNotes(e.target.value)}
+                    placeholder="e.g. weights you used, how it felt, any notes"
+                    rows={3}
+                    className="w-full text-sm text-gray-900 rounded-xl border border-gray-200 px-3 py-2.5 bg-gray-50 placeholder-gray-400 resize-none focus:outline-none focus:border-indigo-300"
+                  />
+                </div>
+
+                <button
+                  onClick={handleConfirmLog}
+                  disabled={confirmingNotes}
+                  className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+                >
+                  {confirmingNotes ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                      Saving…
+                    </>
+                  ) : "Looks good ✓"}
+                </button>
+              </div>
+            )}
+
+            {/* Success */}
+            {logConfirmed && (
+              <div className="space-y-3">
+                {newPRs.length > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <p className="text-amber-800 font-semibold text-sm mb-1">
+                      🏆 New Personal Best{newPRs.length > 1 ? "s" : ""}!
+                    </p>
+                    {newPRs.map((pr) => (
+                      <p key={pr.lift} className="text-amber-700 text-sm">
+                        {pr.lift.replace(/([A-Z])/g, " $1").trim()}: estimated 1RM —{" "}
+                        <span className="font-semibold">
+                          {Math.round(pr.weight * (1 + pr.reps / 30) * 10) / 10}kg
+                        </span>
+                      </p>
+                    ))}
+                  </div>
+                )}
+                <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
+                  <p className="text-2xl mb-2">✅</p>
+                  <p className="text-green-700 font-semibold text-sm">Session logged!</p>
+                  <p className="text-green-600/70 text-xs mt-0.5">
+                    {wodParsed?.box ? `${wodParsed.box} WOD saved` : "WOD saved"} for {logDate}.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setImageDataUrls([]);
+                      setWodParsed(null);
+                      setWodEnriched(null);
+                      setLogConfirmed(false);
+                      setLogNotes("");
+                      setNewPRs([]);
+                      setLogDate(logTodayISO());
+                    }}
+                    className="mt-3 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+                  >
+                    Log another session
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         <div className="h-4" />
       </main>
