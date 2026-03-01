@@ -498,11 +498,7 @@ export default function ReadinessPage() {
 
                   {/* HRV / sleep chips */}
                   <div className="flex gap-2 mt-3 flex-wrap">
-                    {snapshot.overall.hrvScore != null && (
-                      <span className="text-xs bg-white/70 border border-gray-200 rounded-full px-2 py-0.5 text-gray-600">
-                        ❤️ HRV est. {snapshot.overall.hrvScore}
-                      </span>
-                    )}
+
                     {snapshot.overall.sleepScore != null && (
                       <span className="text-xs bg-white/70 border border-gray-200 rounded-full px-2 py-0.5 text-gray-600">
                         😴 Sleep {snapshot.overall.sleepScore}

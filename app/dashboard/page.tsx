@@ -50,6 +50,14 @@ const SESSION_CONFIG: Record<string, { icon: string; label: string; isHard: bool
   Bike:      { icon: "🚴", label: "Bike",       isHard: false },
 };
 
+const STRAVA_TYPE_ICON: Record<string, string> = {
+  Run: "🏃", VirtualRun: "🏃",
+  Ride: "🚴", VirtualRide: "🚴",
+  WeightTraining: "💪", Strength: "💪", Workout: "💪",
+  Crossfit: "🏋️",
+  Walk: "🚶", Hike: "🥾", Swim: "🏊",
+};
+
 const CIRCUMFERENCE = 2 * Math.PI * 54; // r=54 → ≈339.29
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -65,17 +73,10 @@ function verdictColor(verdict: string): string {
 }
 
 function chipStyle(score: number): string {
-  if (score < 40) return "bg-green-900/40 text-green-400 border border-green-800/40";
-  if (score < 65) return "bg-amber-900/40 text-amber-400 border border-amber-800/40";
-  if (score < 85) return "bg-orange-900/40 text-orange-400 border border-orange-800/40";
-  return "bg-red-900/40 text-red-400 border border-red-800/40";
-}
-
-function fatigueDotColor(avg: number): string {
-  if (avg < 40) return "#00E5A0";
-  if (avg < 65) return "#F59E0B";
-  if (avg < 85) return "#F97316";
-  return "#EF4444";
+  if (score < 40) return "bg-green-50 text-green-600 border border-green-200";
+  if (score < 65) return "bg-amber-50 text-amber-600 border border-amber-200";
+  if (score < 85) return "bg-orange-50 text-orange-600 border border-orange-200";
+  return "bg-red-50 text-red-600 border border-red-200";
 }
 
 function isoDate(d: Date): string {
@@ -94,7 +95,7 @@ function ReadinessGauge({ score, color }: { score: number; color: string }) {
   const offset = CIRCUMFERENCE * (1 - score / 100);
   return (
     <svg width="120" height="120" style={{ transform: "rotate(-90deg)" }}>
-      <circle cx="60" cy="60" r="54" fill="none" stroke="#2A2A2A" strokeWidth="8" />
+      <circle cx="60" cy="60" r="54" fill="none" stroke="#E5E7EB" strokeWidth="8" />
       <circle
         cx="60" cy="60" r="54" fill="none"
         stroke={color} strokeWidth="8" strokeLinecap="round"
@@ -129,7 +130,7 @@ function BarSparkline({
             width={W}
             height={h}
             rx={2}
-            fill={v != null ? color : "#27272A"}
+            fill={v != null ? color : "#E5E7EB"}
           />
         );
       })}
@@ -138,7 +139,7 @@ function BarSparkline({
 }
 
 function Skeleton({ h = "h-24" }: { h?: string }) {
-  return <div className={`bg-[#2A2A2A] animate-pulse rounded-2xl ${h}`} />;
+  return <div className={`bg-gray-200 animate-pulse rounded-2xl ${h}`} />;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -208,22 +209,25 @@ export default function DashboardPage() {
     const label = ["M", "T", "W", "T", "F", "S", "S"][i];
     const isToday = iso === todayISO;
     const sessionForDay = data?.schedule?.sessions?.find((s) => s.day === iso);
-    const hasActivity = (data?.activities ?? []).some((a) => a.start_date.startsWith(iso));
+    const activityForDay = (data?.activities ?? []).find((a) => a.start_date.startsWith(iso));
+    const hasActivity = activityForDay != null;
     const isPast = iso < todayISO;
-    const dayFatigue = data?.fatigueHistory?.find((f) => f.date === iso);
 
-    let indicator = "⚪";
-    if (sessionForDay && hasActivity) indicator = "✅";
-    else if (sessionForDay && isPast) indicator = "⚠️";
-    else if (sessionForDay) indicator = "🔵";
+    const icon = sessionForDay
+      ? (SESSION_CONFIG[sessionForDay.type]?.icon ?? "💪")
+      : activityForDay
+      ? (STRAVA_TYPE_ICON[activityForDay.type] ?? "🏃")
+      : null;
 
-    const dotColor = dayFatigue
-      ? fatigueDotColor(
-          (dayFatigue.neuromuscular + dayFatigue.cardiovascular + dayFatigue.metabolic) / 3
-        )
-      : "#3F3F46";
+    const status: "done" | "missed" | "upcoming" | "rest" = hasActivity
+      ? "done"
+      : sessionForDay && isPast
+      ? "missed"
+      : sessionForDay
+      ? "upcoming"
+      : "rest";
 
-    return { iso, label, isToday, indicator, icon: sessionForDay ? (SESSION_CONFIG[sessionForDay.type]?.icon ?? "💪") : "", dotColor };
+    return { iso, label, isToday, icon, status };
   });
 
   // Last updated label
@@ -240,28 +244,28 @@ export default function DashboardPage() {
 
   if (status === "loading") {
     return (
-      <div className="min-h-screen bg-[#1A1A1A] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#00E5A0] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#1A1A1A] pb-24">
+    <div className="min-h-screen bg-gray-50 pb-20">
       {/* ── Section 1: Header ────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 pt-5 pb-3">
-        <span className="text-zinc-400 text-sm font-medium">
+      <div className="flex items-center justify-between px-4 pt-5 pb-3 max-w-lg mx-auto">
+        <span className="text-gray-500 text-sm font-medium">
           {today.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
         </span>
         {nearestGoal && daysUntil != null ? (
           <Link href="/about">
-            <span className="bg-[#2A2A2A] text-zinc-300 text-xs px-3 py-1.5 rounded-full">
+            <span className="bg-gray-100 text-gray-700 text-xs px-3 py-1.5 rounded-full">
               {nearestGoal.emoji} {daysUntil}d to {nearestGoal.label}
             </span>
           </Link>
         ) : (
           <Link href="/about">
-            <span className="bg-[#2A2A2A] text-zinc-500 text-xs px-3 py-1.5 rounded-full">
+            <span className="bg-gray-100 text-gray-500 text-xs px-3 py-1.5 rounded-full">
               Set a goal →
             </span>
           </Link>
@@ -273,41 +277,36 @@ export default function DashboardPage() {
         {loading ? (
           <Skeleton h="h-36" />
         ) : snapshot ? (
-          <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
+          <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
             <div className="flex items-center gap-4">
               <div className="relative flex-shrink-0">
                 <ReadinessGauge score={snapshot.overall.score} color={color} />
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-xl leading-none">{snapshot.overall.verdictEmoji}</span>
-                  <span className="text-2xl font-bold text-white leading-none mt-1">
+                  <span className="text-2xl font-bold text-gray-900 leading-none mt-1">
                     {snapshot.overall.score}
                   </span>
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-white font-semibold text-lg capitalize">{snapshot.overall.verdict}</p>
-                <p className="text-zinc-400 text-sm mt-1 leading-relaxed">
+                <p className="text-gray-900 font-semibold text-lg capitalize">{snapshot.overall.verdict}</p>
+                <p className="text-gray-600 text-sm mt-1 leading-relaxed">
                   {snapshot.overall.recommendation}
                 </p>
                 {snapshot.overall.sleepScore != null && (
                   <div className="flex gap-2 mt-2">
-                    <span className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                       😴 {snapshot.overall.sleepScore}
                     </span>
-                    {snapshot.overall.hrvScore != null && (
-                      <span className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-0.5 rounded-full">
-                        ❤️ HRV {snapshot.overall.hrvScore}
-                      </span>
-                    )}
                   </div>
                 )}
               </div>
             </div>
           </Link>
         ) : (
-          <div className="bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4 text-center">
-            <p className="text-zinc-500 text-sm">No readiness data yet.</p>
-            <Link href="/readiness" className="text-[#00E5A0] text-sm mt-1 inline-block">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4 text-center">
+            <p className="text-gray-500 text-sm">No readiness data yet.</p>
+            <Link href="/readiness" className="text-indigo-600 text-sm mt-1 inline-block">
               View readiness →
             </Link>
           </div>
@@ -339,16 +338,16 @@ export default function DashboardPage() {
             .sort((a, b) => a.day.localeCompare(b.day) || a.startTime.localeCompare(b.startTime))[0] ?? null;
 
           if (!nextSession) return (
-            <Link href="/schedule" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
-              <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+            <Link href="/schedule" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+              <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
                 Next Session
               </h2>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">📅</span>
                   <div>
-                    <p className="text-white font-semibold text-base">Nothing scheduled</p>
-                    <p className="text-zinc-500 text-xs mt-0.5">Plan next week →</p>
+                    <p className="text-gray-900 font-semibold text-base">Nothing scheduled</p>
+                    <p className="text-gray-500 text-xs mt-0.5">Plan next week →</p>
                   </div>
                 </div>
               </div>
@@ -366,24 +365,24 @@ export default function DashboardPage() {
           const showWarning = !isDone && cfg.isHard && snapshot?.overall.verdict === "recover";
 
           return (
-            <Link href="/schedule" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
-              <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+            <Link href="/schedule" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+              <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
                 Next Session
               </h2>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-3xl">{cfg.icon}</span>
                   <div>
-                    <p className="text-white font-semibold text-base">{cfg.label}</p>
-                    <p className="text-zinc-500 text-xs mt-0.5">{dayLabel} · {nextSession.startTime}</p>
+                    <p className="text-gray-900 font-semibold text-base">{cfg.label}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">{dayLabel} · {nextSession.startTime}</p>
                   </div>
                 </div>
                 {isDone ? (
-                  <span className="text-xs bg-green-900/40 text-green-400 px-2.5 py-1 rounded-full">✓ Done</span>
+                  <span className="text-xs bg-green-50 text-green-600 px-2.5 py-1 rounded-full">✓ Done</span>
                 ) : showWarning ? (
-                  <span className="text-xs bg-red-900/40 text-red-400 px-2.5 py-1 rounded-full">⚠️ Reschedule?</span>
+                  <span className="text-xs bg-red-50 text-red-600 px-2.5 py-1 rounded-full">⚠️ Reschedule?</span>
                 ) : (
-                  <span className="text-xs bg-[#2A2A2A] text-zinc-500 px-2.5 py-1 rounded-full">Scheduled</span>
+                  <span className="text-xs bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">Scheduled</span>
                 )}
               </div>
             </Link>
@@ -392,8 +391,8 @@ export default function DashboardPage() {
 
         {/* ── Section 5: Week at a Glance ───────────────────────────────────── */}
         {!loading && (
-          <div className="bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
-            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+          <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+            <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
               This Week
             </h2>
             <div className="grid grid-cols-7 gap-1">
@@ -401,17 +400,22 @@ export default function DashboardPage() {
                 <div key={day.iso} className="flex flex-col items-center gap-1">
                   <span
                     className={`text-xs font-medium ${
-                      day.isToday ? "text-[#00E5A0]" : "text-zinc-500"
+                      day.isToday ? "text-[#00E5A0]" : "text-gray-400"
                     }`}
                   >
                     {day.label}
                   </span>
-                  <span className="text-sm leading-none">{day.icon || "·"}</span>
-                  <span className="text-sm leading-none">{day.indicator}</span>
-                  <div
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{ backgroundColor: day.dotColor }}
-                  />
+                  <span className={`text-base leading-none ${
+                    day.status === "done" ? "opacity-100" :
+                    day.status === "missed" ? "opacity-40" :
+                    day.status === "upcoming" ? "opacity-70" :
+                    "opacity-20"
+                  }`}>
+                    {day.icon ?? "·"}
+                  </span>
+                  <span className="text-xs leading-none h-4">
+                    {day.status === "done" ? "✅" : day.status === "missed" ? "⚠️" : day.status === "upcoming" ? "🔵" : ""}
+                  </span>
                 </div>
               ))}
             </div>
@@ -422,32 +426,32 @@ export default function DashboardPage() {
         {loading ? (
           <Skeleton h="h-36" />
         ) : data?.fatigueHistory && data.fatigueHistory.some((f) => f.neuromuscular + f.cardiovascular + f.metabolic > 0) ? (
-          <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4">
-            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+          <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4">
+            <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
               Training Load (14 days)
             </h2>
             <ResponsiveContainer width="100%" height={120}>
               <LineChart data={data.fatigueHistory} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "#52525B", fontSize: 9 }}
+                  tick={{ fill: "#9CA3AF", fontSize: 9 }}
                   tickLine={false}
                   axisLine={false}
                   interval={6}
                 />
                 <YAxis
                   domain={[0, 100]}
-                  tick={{ fill: "#52525B", fontSize: 9 }}
+                  tick={{ fill: "#9CA3AF", fontSize: 9 }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <Tooltip
-                  contentStyle={{ background: "#242424", border: "1px solid #2A2A2A", borderRadius: 8, fontSize: 11 }}
-                  labelStyle={{ color: "#A1A1AA" }}
-                  itemStyle={{ color: "#E4E4E7" }}
+                  contentStyle={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, fontSize: 11 }}
+                  labelStyle={{ color: "#6B7280" }}
+                  itemStyle={{ color: "#111827" }}
                 />
-                <ReferenceLine y={65} stroke="#F59E0B" strokeDasharray="3 3" strokeOpacity={0.5} />
-                <ReferenceLine y={85} stroke="#EF4444" strokeDasharray="3 3" strokeOpacity={0.5} />
+                <ReferenceLine y={65} stroke="#F59E0B" strokeDasharray="3 3" strokeOpacity={0.6} />
+                <ReferenceLine y={85} stroke="#EF4444" strokeDasharray="3 3" strokeOpacity={0.6} />
                 <Line dataKey="neuromuscular" stroke="#F97316" dot={false} strokeWidth={1.5} name="Neuro" />
                 <Line dataKey="cardiovascular" stroke="#60A5FA" dot={false} strokeWidth={1.5} name="Cardio" />
                 <Line dataKey="metabolic"      stroke="#A78BFA" dot={false} strokeWidth={1.5} name="Metabolic" />
@@ -469,7 +473,7 @@ export default function DashboardPage() {
                   ) : (
                     <span className="w-3 h-0.5 rounded-full inline-block" style={{ backgroundColor: item.color }} />
                   )}
-                  <span className="text-zinc-500 text-xs">{item.label}</span>
+                  <span className="text-gray-500 text-xs">{item.label}</span>
                 </div>
               ))}
             </div>
@@ -480,8 +484,8 @@ export default function DashboardPage() {
         {!loading && (
           <div className="grid grid-cols-2 gap-3">
             {/* Sleep panel */}
-            <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-3">
-              <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">
+            <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-3">
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
                 😴 Sleep
               </p>
               {(() => {
@@ -490,22 +494,22 @@ export default function DashboardPage() {
                 const hours = lastNight?.hours ?? null;
                 const compLabel = hours != null && avg != null
                   ? hours >= avg
-                    ? { text: "↑ above avg", cls: "text-green-400" }
+                    ? { text: "↑ above avg", cls: "text-green-600" }
                     : hours >= avg * 0.9
-                    ? { text: "→ at avg", cls: "text-zinc-400" }
-                    : { text: "↓ below avg", cls: "text-amber-400" }
+                    ? { text: "→ at avg", cls: "text-gray-500" }
+                    : { text: "↓ below avg", cls: "text-amber-600" }
                   : null;
                 const sleepValues = (data?.sleepLast7 ?? []).map((e) => e?.hours ?? null);
                 return (
                   <>
-                    <p className="text-white text-2xl font-bold leading-none">
+                    <p className="text-gray-900 text-2xl font-bold leading-none">
                       {hours != null ? `${hours}h` : "—"}
                     </p>
                     {compLabel && (
                       <p className={`text-xs mt-0.5 ${compLabel.cls}`}>{compLabel.text}</p>
                     )}
                     {avg != null && (
-                      <p className="text-zinc-600 text-xs mt-0.5">{avg}h avg/30d</p>
+                      <p className="text-gray-400 text-xs mt-0.5">{avg}h avg/30d</p>
                     )}
                     <div className="mt-2">
                       <BarSparkline values={sleepValues} maxVal={10} color="#60A5FA" />
@@ -516,8 +520,8 @@ export default function DashboardPage() {
             </Link>
 
             {/* Resting HR panel */}
-            <Link href="/readiness" className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-3">
-              <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-2">
+            <Link href="/readiness" className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-3">
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
                 ❤️ Resting HR
               </p>
               {(() => {
@@ -528,27 +532,27 @@ export default function DashboardPage() {
                 const isProfileFallback = todayRHR == null && bpm != null;
                 const compLabel = bpm != null && avg != null
                   ? bpm <= avg * 1.03
-                    ? { text: "↓ normal", cls: "text-green-400" }
+                    ? { text: "↓ normal", cls: "text-green-600" }
                     : bpm <= avg * 1.08
-                    ? { text: "→ slightly elevated", cls: "text-amber-400" }
-                    : { text: "↑ elevated", cls: "text-red-400" }
+                    ? { text: "→ slightly elevated", cls: "text-amber-600" }
+                    : { text: "↑ elevated", cls: "text-red-600" }
                   : null;
                 const rhrValues = (data?.rhrLast7 ?? []).map((e) => e?.bpm ?? null);
                 const maxBpm = Math.max(...rhrValues.filter((v): v is number => v !== null), 80);
                 return (
                   <>
-                    <p className="text-white text-2xl font-bold leading-none">
+                    <p className="text-gray-900 text-2xl font-bold leading-none">
                       {bpm != null ? `${bpm}` : "—"}
-                      {bpm != null && <span className="text-sm font-normal text-zinc-500 ml-1">bpm</span>}
+                      {bpm != null && <span className="text-sm font-normal text-gray-400 ml-1">bpm</span>}
                     </p>
                     {compLabel && (
                       <p className={`text-xs mt-0.5 ${compLabel.cls}`}>{compLabel.text}</p>
                     )}
                     {isProfileFallback && (
-                      <p className="text-zinc-600 text-xs mt-0.5">from profile</p>
+                      <p className="text-gray-400 text-xs mt-0.5">from profile</p>
                     )}
                     {avg != null && (
-                      <p className="text-zinc-600 text-xs mt-0.5">{avg} bpm avg/30d</p>
+                      <p className="text-gray-400 text-xs mt-0.5">{avg} bpm avg/30d</p>
                     )}
                     {rhrValues.some((v) => v !== null) && (
                       <div className="mt-2">
@@ -566,17 +570,17 @@ export default function DashboardPage() {
         {!loading && data?.lastSession && (
           <Link
             href={`/session/${data.lastSession.date}`}
-            className="block bg-[#242424] border border-[#2A2A2A] rounded-2xl p-4"
+            className="block bg-white border border-gray-200 shadow-sm rounded-2xl p-4"
           >
-            <h2 className="text-zinc-400 text-xs font-semibold uppercase tracking-wider mb-3">
+            <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3">
               Last Session
             </h2>
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="text-white font-semibold">
+                <p className="text-gray-900 font-semibold">
                   {data.lastSession.wod?.box ?? "Training Session"}
                 </p>
-                <p className="text-zinc-500 text-xs mt-0.5">
+                <p className="text-gray-500 text-xs mt-0.5">
                   {new Date(data.lastSession.date + "T12:00:00").toLocaleDateString("en-GB", {
                     weekday: "short",
                     day: "numeric",
@@ -585,7 +589,7 @@ export default function DashboardPage() {
                 </p>
               </div>
               {data.lastSession.wod?.sessionType && (
-                <span className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-1 rounded-full capitalize">
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full capitalize">
                   {data.lastSession.wod.sessionType.replace(/_/g, " ")}
                 </span>
               )}
@@ -593,26 +597,26 @@ export default function DashboardPage() {
             <div className="flex gap-5">
               {data.lastSession.enrichedIntensity != null && (
                 <div>
-                  <p className="text-zinc-500 text-xs">
+                  <p className="text-gray-500 text-xs">
                     {data.lastSession.dominantStressType === "cardiovascular"
                       ? "Effort"
                       : data.lastSession.dominantStressType === "neuromuscular"
                       ? "Load"
                       : "Intensity"}
                   </p>
-                  <p className="text-white font-bold">{data.lastSession.enrichedIntensity}/10</p>
+                  <p className="text-gray-900 font-bold">{data.lastSession.enrichedIntensity}/10</p>
                 </div>
               )}
               {data.lastSession.performance?.averageHR != null && (
                 <div>
-                  <p className="text-zinc-500 text-xs">Avg HR</p>
-                  <p className="text-white font-bold">{data.lastSession.performance.averageHR} bpm</p>
+                  <p className="text-gray-500 text-xs">Avg HR</p>
+                  <p className="text-gray-900 font-bold">{data.lastSession.performance.averageHR} bpm</p>
                 </div>
               )}
               {data.lastSession.performance?.duration != null && (
                 <div>
-                  <p className="text-zinc-500 text-xs">Duration</p>
-                  <p className="text-white font-bold">{minsToHM(data.lastSession.performance.duration)}</p>
+                  <p className="text-gray-500 text-xs">Duration</p>
+                  <p className="text-gray-900 font-bold">{minsToHM(data.lastSession.performance.duration)}</p>
                 </div>
               )}
             </div>
@@ -621,7 +625,7 @@ export default function DashboardPage() {
                 {data.lastSession.sessionNotes!.parsed.liftData.slice(0, 4).map((lift, i) => (
                   <span
                     key={i}
-                    className="text-xs bg-[#1A1A1A] text-zinc-400 px-2 py-0.5 rounded-full"
+                    className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
                   >
                     {lift.lift} {lift.topSetWeight}kg
                   </span>
@@ -633,12 +637,12 @@ export default function DashboardPage() {
 
         {/* ── Footer ───────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between py-2">
-          <p className="text-zinc-600 text-xs">
+          <p className="text-gray-400 text-xs">
             {updatedLabel ? `Updated ${updatedLabel}` : "Loading…"}
           </p>
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
-            className="text-xs text-zinc-500 hover:text-[#00E5A0] transition-colors"
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
             ↻ Refresh
           </button>
