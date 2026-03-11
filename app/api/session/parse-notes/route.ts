@@ -30,24 +30,34 @@ export async function POST(req: NextRequest) {
 
   const sessionDate = date ?? todayISO();
 
+  // Load profile early — needed for bodyweight in the Claude prompt
+  const profile = await getAthleteProfile();
+
   // ─── Call Claude to parse the notes ─────────────────────────────────────────
 
   let parsed: ParsedSessionNotes;
   try {
     const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-    const prompt = `You are a strength training analyst. Parse the user's session notes and extract structured data.
+    const bodyweight = profile?.weight ?? 70;
+    const prompt = `You are a CrossFit and strength training analyst. Parse the user's session notes and extract structured data.
 WOD context: ${JSON.stringify(wodContext ?? {})}
 
 User notes: "${notes}"
 
-Extract lifts, weights (all in kg), rep ranges, RPE/sentiment, injury mentions.
-Use camelCase lift keys: frontSquat, backSquat, deadlift, clean, snatch, benchPress, strictPress.
+Extract all neuromuscularly demanding movements and weights (all in kg), rep ranges, RPE/sentiment, injury mentions.
+
+IMPORTANT — liftData rules:
+1. Include traditional strength lifts (frontSquat, backSquat, deadlift, clean, snatch, benchPress, strictPress, thruster, cleanAndJerk).
+2. Also include barbell, dumbbell, and kettlebell movements performed INSIDE a metcon — use the weight the athlete reported and the rep count from the WOD context (e.g. "21 clean and jerks" → lift "clean", topSetReps 21).
+3. For gymnastics / bodyweight movements (pullUp, ringPullUp, muscleUp, ringDip, handstandPushUp, toeToBar, boxJump) use ${bodyweight}kg as topSetWeight with the rep count from the WOD context.
+4. If the athlete mentions a weight that applies to the whole WOD (e.g. "did it at 55kg"), match it to the barbell movement in the WOD context.
+5. Map "clean and jerk" → "cleanAndJerk", "thruster" → "thruster", "KB swing" → "kettlebellSwing", "DB snatch" → "dumbbellSnatch".
 
 Return ONLY valid JSON — no markdown:
 {
-  "liftData": [{ "lift": "frontSquat", "topSetWeight": 82.5, "topSetReps": 3, "estimatedOneRM": null, "rpe": 8 }],
-  "metconNotes": { "weight": null, "scaling": null, "feeling": "good" },
+  "liftData": [{ "lift": "cleanAndJerk", "topSetWeight": 55, "topSetReps": 21, "estimatedOneRM": null, "rpe": null }],
+  "metconNotes": { "weight": 55, "scaling": "scaled", "feeling": "good" },
   "sessionRPE": 7,
   "sentiment": "positive",
   "injuryFlag": false,
@@ -83,7 +93,6 @@ Return ONLY valid JSON — no markdown:
 
   // ─── Update athlete profile (1RMs + personal bests) ─────────────────────────
 
-  const profile = await getAthleteProfile();
   const newPersonalBests: PersonalBest[] = [];
 
   if (profile) {

@@ -47,7 +47,17 @@ function estimatedRecoveryHours(score: number): number {
 }
 
 function isoToDate(iso: string): Date {
-  return new Date(iso.includes("T") ? iso : iso + "T12:00:00Z");
+  return new Date(iso.includes("T") ? iso : iso + "T00:00:00Z");
+}
+
+function sessionLabel(session: EnrichedSession): string {
+  const namedSection = session.wod?.sections?.find(
+    (s) => s.name && s.name.toLowerCase() !== "unknown"
+  );
+  if (namedSection) return `${namedSection.name} (${session.date})`;
+  const box = session.wod?.box;
+  if (box && box.toLowerCase() !== "unknown") return `${box} WOD (${session.date})`;
+  return `Session (${session.date})`;
 }
 
 interface MetabolicPoint {
@@ -92,10 +102,7 @@ export function computeMetabolicFatigue(
     const rawLoad = calculateMetabolicLoad(sufferScore, sessionRPE, minsAbove90);
     if (rawLoad <= 0) continue;
 
-    const desc = session.wod?.box
-      ? `${session.wod.box} WOD (${session.date})`
-      : `Session (${session.date})`;
-    points.push({ load: rawLoad, startDate, description: desc });
+    points.push({ load: rawLoad, startDate, description: sessionLabel(session) });
   }
 
   // Pick up high-intensity activities not matched to enriched sessions
@@ -137,12 +144,14 @@ export function computeMetabolicFatigue(
     totalDecayed += decay(point.load, hoursSince);
   }
 
-  if (sorted.length > 0) {
-    const mostRecent = sorted[0];
+  const mostRecentPast = sorted.find(
+    (p) => (now.getTime() - p.startDate.getTime()) / 3600000 >= 0
+  );
+  if (mostRecentPast) {
     lastHardSessionHours = Math.round(
-      (now.getTime() - mostRecent.startDate.getTime()) / 3600000
+      (now.getTime() - mostRecentPast.startDate.getTime()) / 3600000
     );
-    primaryDriver = `${mostRecent.description} — ${lastHardSessionHours}h ago`;
+    primaryDriver = `${mostRecentPast.description} — ${lastHardSessionHours}h ago`;
   }
 
   // Normalise: raw 150 = extreme session (e.g. high RPE + high HR for 1hr with full suffer score)

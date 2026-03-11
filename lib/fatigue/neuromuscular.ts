@@ -31,7 +31,30 @@ function estimatedRecoveryHours(score: number, metabolicFatigue: number): number
 
 function isoToDate(iso: string): Date {
   // Handles both "2026-02-25" and "2026-02-25T08:00:00Z"
-  return new Date(iso.includes("T") ? iso : iso + "T12:00:00Z");
+  // Use midnight UTC for date-only strings so same-day sessions are never "in the future"
+  return new Date(iso.includes("T") ? iso : iso + "T00:00:00Z");
+}
+
+function sessionLabel(session: EnrichedSession): string {
+  const namedSection = session.wod?.sections?.find(
+    (s) => s.name && s.name.toLowerCase() !== "unknown"
+  );
+  if (namedSection) return `${namedSection.name} (${session.date})`;
+  const box = session.wod?.box;
+  if (box && box.toLowerCase() !== "unknown") return `${box} WOD (${session.date})`;
+  return `Session (${session.date})`;
+}
+
+/**
+ * Returns true if the session has WOD sections with non-cardio muscle groups,
+ * meaning it has weighted or gymnastics movements with neuromuscular demand.
+ */
+function isNonCardioMetcon(session: EnrichedSession): boolean {
+  const sections = session.wod?.sections;
+  if (!sections || sections.length === 0) return false;
+  return sections.some((s) =>
+    s.dominantMuscleGroups.some((mg) => mg !== "cardio")
+  );
 }
 
 interface SessionPoint {
@@ -54,17 +77,14 @@ export function computeNeuromuscularFatigue(
     if (!session) continue;
 
     const sessionDate = isoToDate(session.date);
-    const description =
-      session.wod?.sessionType
-        ? `${session.wod.sessionType.replace(/_/g, " ")} (${session.date})`
-        : `Gym session (${session.date})`;
+    const description = sessionLabel(session);
 
     if (session.neuromuscularLoad != null && session.neuromuscularLoad > 0) {
       points.push({ load: session.neuromuscularLoad, startDate: sessionDate, description });
       continue;
     }
 
-    // Fallback for gym sessions without notes: estimate from duration via Strava
+    // Fallback for strength sessions without notes: estimate from duration via Strava
     if (
       session.dominantStressType === "neuromuscular" ||
       session.source === "strava_only"
@@ -80,6 +100,21 @@ export function computeNeuromuscularFatigue(
         const rawLoad = Math.min((activity.moving_time / 3600) * 60, 100);
         points.push({ load: rawLoad, startDate: sessionDate, description });
       }
+      continue;
+    }
+
+    // Fallback for metcon/mixed sessions: almost all CrossFit metcons involve weighted or
+    // gymnastics movements with neuromuscular demand. Estimate from enrichedIntensity unless
+    // the WOD is purely cardio (run/row/bike only).
+    if (
+      (session.dominantStressType === "cardiovascular" ||
+        session.dominantStressType === "mixed") &&
+      session.enrichedIntensity != null &&
+      session.enrichedIntensity > 0 &&
+      isNonCardioMetcon(session)
+    ) {
+      const rawLoad = session.enrichedIntensity * 7; // intensity 1-10 → load 7-70
+      points.push({ load: rawLoad, startDate: sessionDate, description });
     }
   }
 
@@ -118,12 +153,14 @@ export function computeNeuromuscularFatigue(
     totalDecayed += decay(point.load, hoursSince, metabolicFatigue);
   }
 
-  if (sorted.length > 0) {
-    const mostRecent = sorted[0];
+  const mostRecentPast = sorted.find(
+    (p) => (now.getTime() - p.startDate.getTime()) / 3600000 >= 0
+  );
+  if (mostRecentPast) {
     lastHardSessionHours = Math.round(
-      (now.getTime() - mostRecent.startDate.getTime()) / 3600000
+      (now.getTime() - mostRecentPast.startDate.getTime()) / 3600000
     );
-    primaryDriver = `${mostRecent.description} — ${lastHardSessionHours}h ago`;
+    primaryDriver = `${mostRecentPast.description} — ${lastHardSessionHours}h ago`;
   }
 
   const score = Math.round(Math.min(totalDecayed, 100));
