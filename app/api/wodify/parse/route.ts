@@ -10,7 +10,7 @@ const SYSTEM_PROMPT = `You are a CrossFit workout parser. Extract structured dat
 Return ONLY a JSON object with no preamble or markdown, in this exact shape:
 {
   "date": "YYYY-MM-DD",
-  "box": "gym name",
+  "box": "gym or box name, or empty string if not visible in the screenshot",
   "sections": [
     {
       "type": "warmup|weightlifting|metcon|skill|cooldown",

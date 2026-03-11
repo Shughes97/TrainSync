@@ -34,7 +34,17 @@ function estimatedRecoveryHours(score: number): number {
 }
 
 function isoToDate(iso: string): Date {
-  return new Date(iso.includes("T") ? iso : iso + "T12:00:00Z");
+  return new Date(iso.includes("T") ? iso : iso + "T00:00:00Z");
+}
+
+function sessionLabel(session: EnrichedSession): string {
+  const namedSection = session.wod?.sections?.find(
+    (s) => s.name && s.name.toLowerCase() !== "unknown"
+  );
+  if (namedSection) return `${namedSection.name} (${session.date})`;
+  const box = session.wod?.box;
+  if (box && box.toLowerCase() !== "unknown") return `${box} WOD (${session.date})`;
+  return `Session (${session.date})`;
 }
 
 interface TRIMPPoint {
@@ -69,10 +79,7 @@ export function computeCardiovascularFatigue(
       if (rpe != null && isAerobic && session) {
         const fallbackTrimp = rpe * 10; // RPE 9 → TRIMP 90
         const startDate = isoToDate(session.date);
-        const desc = session.wod?.box
-          ? `${session.wod.box} WOD (${session.date})`
-          : `Session (${session.date})`;
-        points.push({ trimp: fallbackTrimp, startDate, description: desc });
+        points.push({ trimp: fallbackTrimp, startDate, description: sessionLabel(session) });
       }
       continue;
     }
@@ -107,10 +114,7 @@ export function computeCardiovascularFatigue(
       (session.source === "strava_only");
 
     if (isAerobic && trimp > 0) {
-      const desc = session.wod?.box
-        ? `${session.wod.box} WOD (${session.date})`
-        : `Session (${session.date})`;
-      points.push({ trimp, startDate, description: desc });
+      points.push({ trimp, startDate, description: sessionLabel(session) });
     }
   }
 
@@ -166,12 +170,14 @@ export function computeCardiovascularFatigue(
     totalDecayed += decayedTrimp;
   }
 
-  if (sorted.length > 0) {
-    const mostRecent = sorted[0];
+  const mostRecentPast = sorted.find(
+    (p) => (now.getTime() - p.startDate.getTime()) / 3600000 >= 0
+  );
+  if (mostRecentPast) {
     lastHardSessionHours = Math.round(
-      (now.getTime() - mostRecent.startDate.getTime()) / 3600000
+      (now.getTime() - mostRecentPast.startDate.getTime()) / 3600000
     );
-    primaryDriver = `${mostRecent.description} — ${lastHardSessionHours}h ago`;
+    primaryDriver = `${mostRecentPast.description} — ${lastHardSessionHours}h ago`;
   }
 
   // Normalise: decayed sum / normFactor * 100, capped at 100
