@@ -14,9 +14,10 @@ import {
   getRecentEnrichedSessions,
   getSleepEntry,
   getRestingHREntry,
+  getBodyMetricsEntry,
   kv,
 } from "@/lib/kv";
-import type { SleepEntry, RestingHREntry, EnrichedSession } from "@/types";
+import type { SleepEntry, RestingHREntry, BodyMetricsEntry, EnrichedSession } from "@/types";
 import type { StoredWeekSchedule } from "@/lib/kv";
 
 function isoDate(d: Date): string {
@@ -33,6 +34,12 @@ function avgBpmCalc(entries: (RestingHREntry | null)[]): number | null {
   const valid = entries.filter((e): e is RestingHREntry => e !== null);
   if (valid.length === 0) return null;
   return Math.round(valid.reduce((s, e) => s + e.bpm, 0) / valid.length);
+}
+
+function avgWeightCalc(entries: (BodyMetricsEntry | null)[]): number | null {
+  const valid = entries.filter((e): e is BodyMetricsEntry => e !== null && e.weightKg != null);
+  if (valid.length === 0) return null;
+  return Math.round((valid.reduce((s, e) => s + e.weightKg!, 0) / valid.length) * 10) / 10;
 }
 
 export async function GET(req: NextRequest) {
@@ -79,6 +86,7 @@ export async function GET(req: NextRequest) {
       weekSchedule,
       sleepEntries30,
       rhrEntries30,
+      bodyMetricsEntries30,
       recentSessions,
       activities,
       profile,
@@ -88,6 +96,7 @@ export async function GET(req: NextRequest) {
       kv.get<StoredWeekSchedule>("schedule:current_week"),
       Promise.all(dates30.map((d) => getSleepEntry(d))),
       Promise.all(dates30.map((d) => getRestingHREntry(d))),
+      Promise.all(dates30.map((d) => getBodyMetricsEntry(d))),
       getRecentEnrichedSessions(14),
       getActivities(),
       getAthleteProfile(),
@@ -120,6 +129,8 @@ export async function GET(req: NextRequest) {
     const sleepAvg30Hours = avgHoursCalc(sleepEntries30);
     const rhrLast7 = rhrEntries30.slice(-7);
     const rhrAvg30Bpm = avgBpmCalc(rhrEntries30);
+    const bodyMetricsLast7 = bodyMetricsEntries30.slice(-7);
+    const bodyMetricsAvg30WeightKg = avgWeightCalc(bodyMetricsEntries30);
 
     const result = {
       snapshot: snapshot ?? null,
@@ -128,6 +139,8 @@ export async function GET(req: NextRequest) {
       sleepAvg30Hours,
       rhrLast7,
       rhrAvg30Bpm,
+      bodyMetricsLast7,
+      bodyMetricsAvg30WeightKg,
       lastSession,
       activities,
       fatigueHistory,

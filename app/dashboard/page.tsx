@@ -14,7 +14,7 @@ import {
   Tooltip,
 } from "recharts";
 import BottomNav from "@/components/BottomNav";
-import type { FatigueSnapshot, SleepEntry, RestingHREntry, EnrichedSession, AthleteProfile, Goal } from "@/types";
+import type { FatigueSnapshot, SleepEntry, RestingHREntry, BodyMetricsEntry, EnrichedSession, AthleteProfile, Goal } from "@/types";
 import type { StoredActivity, StoredSession } from "@/lib/kv";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -34,6 +34,8 @@ interface DashboardData {
   sleepAvg30Hours: number | null;
   rhrLast7: (RestingHREntry | null)[];
   rhrAvg30Bpm: number | null;
+  bodyMetricsLast7: (BodyMetricsEntry | null)[];
+  bodyMetricsAvg30WeightKg: number | null;
   lastSession: EnrichedSession | null;
   activities: StoredActivity[];
   fatigueHistory: FatiguePoint[];
@@ -566,7 +568,76 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ── Section 8: Last Session ───────────────────────────────────────── */}
+        {/* ── Section 8: Body Metrics ───────────────────────────────────────── */}
+        {!loading && (() => {
+          const metrics = data?.bodyMetricsLast7 ?? [];
+          const hasAny = metrics.some((e) => e?.weightKg != null || e?.bodyFatPct != null);
+          if (!hasAny) return null;
+
+          const todayEntry = metrics[6] ?? metrics[5] ?? null;
+          const weightKg = todayEntry?.weightKg ?? null;
+          const bodyFatPct = todayEntry?.bodyFatPct ?? null;
+          const avg30Kg = data?.bodyMetricsAvg30WeightKg ?? null;
+
+          const weightValues = metrics.map((e) => e?.weightKg ?? null);
+          const bodyFatValues = metrics.map((e) => e?.bodyFatPct ?? null);
+
+          const maxWeight = Math.max(...weightValues.filter((v): v is number => v !== null), 100);
+          const maxBodyFat = Math.max(...bodyFatValues.filter((v): v is number => v !== null), 30);
+
+          // Weight trend vs 30d avg
+          const weightCompLabel = weightKg != null && avg30Kg != null
+            ? weightKg <= avg30Kg * 1.005
+              ? { text: "↓ at or below avg", cls: "text-green-600" }
+              : weightKg <= avg30Kg * 1.015
+              ? { text: "→ near avg", cls: "text-gray-500" }
+              : { text: "↑ above avg", cls: "text-amber-600" }
+            : null;
+
+          return (
+            <div className="grid grid-cols-2 gap-3">
+              {/* Weight panel */}
+              <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-3">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
+                  ⚖️ Weight
+                </p>
+                <p className="text-gray-900 text-2xl font-bold leading-none">
+                  {weightKg != null ? `${weightKg}` : "—"}
+                  {weightKg != null && <span className="text-sm font-normal text-gray-400 ml-1">kg</span>}
+                </p>
+                {weightCompLabel && (
+                  <p className={`text-xs mt-0.5 ${weightCompLabel.cls}`}>{weightCompLabel.text}</p>
+                )}
+                {avg30Kg != null && (
+                  <p className="text-gray-400 text-xs mt-0.5">{avg30Kg} kg avg/30d</p>
+                )}
+                {weightValues.some((v) => v !== null) && (
+                  <div className="mt-2">
+                    <BarSparkline values={weightValues} maxVal={maxWeight} color="#818CF8" />
+                  </div>
+                )}
+              </div>
+
+              {/* Body fat panel */}
+              <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-3">
+                <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">
+                  📊 Body Fat
+                </p>
+                <p className="text-gray-900 text-2xl font-bold leading-none">
+                  {bodyFatPct != null ? `${bodyFatPct}` : "—"}
+                  {bodyFatPct != null && <span className="text-sm font-normal text-gray-400 ml-1">%</span>}
+                </p>
+                {bodyFatValues.some((v) => v !== null) && (
+                  <div className="mt-2">
+                    <BarSparkline values={bodyFatValues} maxVal={maxBodyFat} color="#34D399" />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── Section 9: Last Session ───────────────────────────────────────── */}
         {!loading && data?.lastSession && (
           <Link
             href={`/session/${data.lastSession.date}`}
