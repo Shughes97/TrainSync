@@ -195,6 +195,27 @@ export interface RestingHRState {
   history: (number | null)[];   // last 7 days bpm, oldest first
 }
 
+export interface BodyMetricsEntry {
+  date: string;             // YYYY-MM-DD
+  weightKg: number | null;
+  bodyFatPct: number | null;
+  source: "shortcut" | "manual";
+  createdAt: string;
+}
+
+export interface BodyMetricsState {
+  today: BodyMetricsEntry | null;
+  todayWeightKg: number | null;
+  todayBodyFatPct: number | null;
+  rolling7DayAvgWeightKg: number | null;
+  rolling30DayAvgWeightKg: number | null;
+  rolling7DayAvgBodyFatPct: number | null;
+  weightTrend: "up" | "down" | "stable";
+  bodyFatTrend: "up" | "down" | "stable";
+  weightHistory: (number | null)[];    // last 7 days kg, oldest first
+  bodyFatHistory: (number | null)[];   // last 7 days %, oldest first
+}
+
 export interface FatigueSnapshot {
   date: string;                        // YYYY-MM-DD
   neuromuscular: FatigueSystemState;

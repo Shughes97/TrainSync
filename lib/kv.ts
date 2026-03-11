@@ -7,7 +7,7 @@
  */
 
 import { kv } from "@vercel/kv";
-import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile, FatigueSnapshot, SleepEntry, RestingHREntry } from "@/types";
+import type { WodifyParsed, EnrichedSession, OpenGymSuggestion, AthleteProfile, FatigueSnapshot, SleepEntry, RestingHREntry, BodyMetricsEntry } from "@/types";
 
 export { kv };
 
@@ -305,6 +305,20 @@ export async function getRestingHREntry(date: string): Promise<RestingHREntry | 
 export async function setRestingHREntry(entry: RestingHREntry): Promise<void> {
   try {
     await kv.set(`health:resting-hr:${entry.date}`, entry);
+  } catch {
+    // silently ignore if KV unavailable
+  }
+}
+
+// ─── Body Metrics helpers ─────────────────────────────────────────────────────
+
+export async function getBodyMetricsEntry(date: string): Promise<BodyMetricsEntry | null> {
+  return safeGet<BodyMetricsEntry>(`health:body-metrics:${date}`);
+}
+
+export async function setBodyMetricsEntry(entry: BodyMetricsEntry): Promise<void> {
+  try {
+    await kv.set(`health:body-metrics:${entry.date}`, entry);
   } catch {
     // silently ignore if KV unavailable
   }
