@@ -578,10 +578,19 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-gray-900 font-semibold">
-                  {data.lastSession.wod?.box ?? "Training Session"}
+                  {(() => {
+                    const s = data.lastSession;
+                    const named = s.wod?.sections?.find(
+                      (sec) => sec.name && sec.name.toLowerCase() !== "unknown"
+                    );
+                    if (named) return named.name;
+                    const box = s.wod?.box;
+                    if (box && box.toLowerCase() !== "unknown") return box;
+                    return "Training Session";
+                  })()}
                 </p>
                 <p className="text-gray-500 text-xs mt-0.5">
-                  {new Date(data.lastSession.date + "T12:00:00").toLocaleDateString("en-GB", {
+                  {new Date(data.lastSession.date + "T00:00:00Z").toLocaleDateString("en-GB", {
                     weekday: "short",
                     day: "numeric",
                     month: "short",
